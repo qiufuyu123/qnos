@@ -1,0 +1,33 @@
+{
+    "files.associations": {
+        "multiboot.h": "c",
+        "gdt.h": "c",
+        "console.h": "c",
+        "string.h": "c",
+        "cstdio": "c",
+        "stdarg.h": "c",
+        "isr.h": "c",
+        "irq.h": "c",
+        "types.h": "c",
+        "bitmap.h": "c",
+        "memorylayout.h": "c",
+        "page.h": "c",
+        "vmm.h": "c",
+        "malloc.h": "c",
+        "climits": "c",
+        "cmath": "c",
+        "cstdarg": "c",
+        "cstdint": "c",
+        "cstdlib": "c",
+        "type_traits": "c",
+        "limits": "c",
+        "*.tcc": "c",
+        "typeinfo": "c",
+        "task.h": "c",
+        "kobject.h": "c",
+        "kobjs.h": "c",
+        "ata.h": "c",
+        "io.h": "c",
+        "timer.h": "c"
+    }
+}

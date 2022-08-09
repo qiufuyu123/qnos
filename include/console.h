@@ -1,0 +1,51 @@
+/**
+ * @file console.h
+ * @author qiufuyu (3038742090@qq.com)
+ * @brief A common interface for kernel mode console line
+ * @version 0.1
+ * @date 2022-07-29
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
+#ifndef _H_CONSOLE
+#define _H_CONSOLE
+#include"types.h"
+typedef struct kconsole
+{
+    void(*init)();
+    void(*pause)();
+    void(*putstr)(char *str);
+    void(*putchr)(char c);
+    void(*setcolor)(char bg,char fg);
+    void(*setcurse)(int x,int y);
+    int id;
+    void(*cls)();
+    
+}kconsole_t;
+enum VgaTextColor
+{
+    Vga_Black,
+    Vga_Blue,
+    Vga_Green,
+    Vga_Cyan,
+    Vga_Red,
+    Vga_Magenta,
+    Vga_Brown,
+    Vga_Gray,
+    Vga_DarkGray,
+    Vga_BrightBlue,
+    Vga_BrightGreen,
+    Vga_BrightCyan,
+    Vga_BrightRed,
+    Vga_BrightMagenta,
+    Vga_Yellow,
+    Vga_White  
+};
+extern kconsole_t Klogger;
+void printf(const char *s, ...);
+#define ASSERT(expr,info) if(!(expr)){printf("PANIC:ASSERT ERROR!\nINFO %s\n",info);while(1);}
+#define ASSERT(expr) if(!(expr)){printf("PANIC:ASSERT ERROR!\n");while(1);}
+#define PANIC(info)printf(info);while(1);
+#endif
