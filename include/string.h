@@ -22,4 +22,6 @@ const char *strchr(const char *s, char ch);
 
 void memset(void *d, char value, unsigned length);
 void memcpy(void *d, const void *s, unsigned length);
+void *memclr(void *dest, int32_t count);
+int32_t memcmp(const void *in1, const void *in2, uint32_t count);
 #endif

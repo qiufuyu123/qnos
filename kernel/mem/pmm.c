@@ -14,6 +14,11 @@ void pmm_init()
     bitmap_set(&pmm_bitmap,0,1);
     used_pmm=1;
 }
+void pmm_set_page(uint32_t paddr)
+{
+    bitmap_set(&pmm_bitmap,paddr/4096,1);
+    used_pmm++;   
+}
 uint32_t pmm_get_page()
 {
     int idx=bitmap_scan(&pmm_bitmap,1);

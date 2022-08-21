@@ -16,4 +16,6 @@ typedef unsigned char bool;
 #define TRUE 1
 #define false FALSE
 #define true TRUE
+#define NULL 0
+#define PACKED __attribute__((packed))
 #endif

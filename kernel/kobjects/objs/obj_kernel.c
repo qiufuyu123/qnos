@@ -4,6 +4,7 @@
 kobject_t*kobj_instance;
 uint32_t kobj_write(uint32_t id,uint32_t buffer,uint32_t sz,uint32_t flag)
 {
+    Klogger->putstr(buffer);
     //printf("%s",buffer);
 }
 uint32_t kobj_read(uint32_t id,uint32_t buffer,uint32_t sz,uint32_t flag)

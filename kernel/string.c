@@ -1,5 +1,6 @@
 #include"string.h"
 #include"types.h"
+#include"mem/malloc.h"
 void strcpy(char *d, const char *s)
 {
 	while(*s) {
@@ -126,20 +127,20 @@ char *strtok(char *s, const char *delim)
 
 char *strdup(const char *s)
 {
-	/*char *new = kmalloc(strlen(s) + 1);
+	char *new = kmalloc(strlen(s) + 1);
 	if(new)
 		strcpy(new, s);
-	return new;*/
+	return new;
 }
 
 char *strndup(const char *s, unsigned length)
 {
-	/*char *new = kmalloc(length+1);
+	char *new = kmalloc(length+1);
 	if(new) {
 		strncpy(new,s,length);
 		new[length] = 0;
 	}
-	return new;*/
+	return new;
 }
 
 void strtoupper(char *name)
@@ -216,4 +217,16 @@ char *uint_to_string(uint32_t u, char *s)
 	}
 	s[i] = 0;
 	return s;
+}
+void *memclr(void *dest, int32_t count) {
+    memset(dest, 0, count);
+    return dest;
+}
+int32_t memcmp(const void *in1, const void *in2, uint32_t count) {
+    const int8_t *ip1 = in1;
+    const int8_t *ip2 = in2;
+    for (; count; count--)
+        if (*ip1++ != *ip2++)
+            return 1;
+    return 0;
 }

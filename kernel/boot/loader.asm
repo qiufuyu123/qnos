@@ -1,11 +1,12 @@
 
 global _start
-MBOOT_PAGE_ALIGN    equ 1<<0		; Load kernel and modules on a page boundary
+MB
+OOT_PAGE_ALIGN    equ 1<<0		; Load kernel and modules on a page boundary
 MBOOT_MEM_INFO      equ 1<<1		; Provide your kernel with memory info
 MBOOT_HEADER_MAGIC  equ 0x1BADB002	; Multiboot Magic value
 ; NOTE: We do not use MBOOT_AOUT_KLUDGE. It means that GRUB does not
 ; pass us a symbol table.
-MBOOT_HEADER_FLAGS  equ MBOOT_PAGE_ALIGN | MBOOT_MEM_INFO
+MBOOT_HEADER_FLAGS  equ 7
 MBOOT_CHECKSUM      equ -(MBOOT_HEADER_MAGIC + MBOOT_HEADER_FLAGS)
 
 
@@ -16,13 +17,24 @@ align 4
 				; 4-byte boundary in your kernel file
     dd  MBOOT_HEADER_FLAGS	; How GRUB should load your file / settings
     dd  MBOOT_CHECKSUM		; To ensure that the above values are correct
+    dd  0                   ;header addr
+    dd  0                   ;load addr
+    dd  0                   ;load end addr
+    dd  0                   ;bss
+    dd  0                   ;entry
+    dd  0                   ;mode type
+    dd  1280                ;width
+    dd  1024                ;height
+    dd  32                  ;depth
+    resb 4*13
 extern kernelmain
 
 ;为内核栈空出16k地址
 section .bss
 align 4
 stack_bottom:
-resb 17384 ; 16 KiB
+resb 18384 ; 16 KiB
+
 stack_top:
 
 section .text

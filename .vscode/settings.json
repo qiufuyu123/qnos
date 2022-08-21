@@ -28,6 +28,17 @@
         "kobjs.h": "c",
         "ata.h": "c",
         "io.h": "c",
-        "timer.h": "c"
+        "timer.h": "c",
+        "list.h": "c",
+        "vga.h": "c",
+        "obj_vfs.h": "c",
+        "fs_iso9660.h": "c",
+        "qhash.h": "c",
+        "qconfig.h": "c",
+        "sync.h": "c",
+        "faskmapper.h": "c",
+        "symbol.h": "c",
+        "elf.h": "c",
+        "kelf.h": "c"
     }
 }

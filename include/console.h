@@ -15,14 +15,17 @@
 typedef struct kconsole
 {
     void(*init)();
+    void(*update)();
     void(*pause)();
     void(*putstr)(char *str);
     void(*putchr)(char c);
     void(*setcolor)(char bg,char fg);
     void(*setcurse)(int x,int y);
+    
     int id;
     void(*cls)();
-    
+    uint32_t frame_buffer;
+    uint32_t page_cnt;
 }kconsole_t;
 enum VgaTextColor
 {
@@ -43,7 +46,7 @@ enum VgaTextColor
     Vga_Yellow,
     Vga_White  
 };
-extern kconsole_t Klogger;
+kconsole_t *Klogger;
 void printf(const char *s, ...);
 #define ASSERT(expr,info) if(!(expr)){printf("PANIC:ASSERT ERROR!\nINFO %s\n",info);while(1);}
 #define ASSERT(expr) if(!(expr)){printf("PANIC:ASSERT ERROR!\n");while(1);}

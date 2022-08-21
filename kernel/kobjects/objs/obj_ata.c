@@ -25,6 +25,7 @@ uint32_t kata_read(uint32_t id,uint32_t buffer,uint32_t sz,uint32_t flag)
     // if(!current_dev)return 0;
     // current_dev->read_raw(current_dev,id,sz,buffer);
     // return 1; 
+    printf("raad%dsec;",sz);
     return ide_read_sectors(current_disk,sz,id,buffer);
 }
 uint32_t kata_open(uint32_t idx,uint32_t flag)

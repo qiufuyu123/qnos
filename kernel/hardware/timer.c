@@ -9,14 +9,12 @@ uint32_t ticks=0;
 static void timer_callback(registers_t regs)
 {
     ticks++;
-    //printf("tick:%d\n",ticks);
-    if(cur_task->time_left!=0){
-		(cur_task->time_left)--;
-		(cur_task->time_counter)++;
-        
+    if(get_running_progress()->time_left!=0){
+		(get_running_progress()->time_left)--;
+		(get_running_progress()->time_counter)++;
 	}
 	else{
-        //printf("switch!");
+        //printf("Schedule!Running Task ID : %d,Kernel Task:%d\n",get_running_progress()->tid,get_running_progress()->is_kern_thread);
 		schedule();
 	}
 }
@@ -40,12 +38,12 @@ void ksleep(uint32_t ms)
      * 1 tick = 1 ms 
      * 
      */
-    printf("<");
+    //printf("<");
     while (get_tick()<ms)
     {
         
     }
-    printf(">");
+    //printf(">");
     return;
 }
 void init_timer()

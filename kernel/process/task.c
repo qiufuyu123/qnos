@@ -1,74 +1,340 @@
 #include"process/task.h"
 #include"console.h"
-TCB_t *cur_task;
-TCB_t kernel_task;
-#define TIME_OUT 2
-void init_task()
-{
-    cur_task=&kernel_task;
-    cur_task->tid=0;
-    cur_task->kern_stack_top=0;
-    cur_task->next=cur_task;
-    cur_task->page_addr=0;
-    cur_task->page_counte=0;
-    cur_task->task_status=TASK_RUNNING;
-    cur_task->time_counter=0;
-    cur_task->time_left=TIME_OUT;
-    
+#include"io.h"
+#include"mem/malloc.h"
+#include"mem/memorylayout.h"
+#include"mem/page.h"
+#include"string.h"
+#include"utils/fastmapper.h"
+#define TIME_CONT  10 //默认时间片计数
+#define MAX_PID 65535
+#define FORK_COPY_MARK 2
+TCB_t main_TCB;    //内核主线程TCB
+TCB_t* cur_tcb;
+bitmap_t kpid_map;
+fastmapper_t pid_mapper;
+TCB_t* get_running_progress(){
+	return cur_tcb;
 }
-uint32_t create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
-	TCB_t * tcb_buffer_addr = (TCB_t*)page_addr;
-	tcb_buffer_addr->tid = tid;         
+TCB_t*get_tcb(uint32_t pid)
+{
+	return fastmapper_get(&pid_mapper,pid);
+}
+bool check_kern_stack_overflow(TCB_t* tcb_ptr){
+	if(tcb_ptr->tcb_magic_number==TCB_MAGIC_NUMBER){
+		return 1;
+	}
+	else{
+		return 0;
+	}	
+}
+
+static void kern_overflow_handler(TCB_t * tcb_ptr){
+	uint32_t tid = tcb_ptr->tid;
+	printf("Thread Kern Stack Overflow!STOP!");
+}
+
+//线程调度的第一步
+//主要功能： 1 页表切换   2  tss栈修改    
+// static void active_task(TCB_t * next){
+	
+// }
+
+static void  _init_main_thread(TCB_t * main_tcb){
+	TCB_t *tcb_buffer_addr = main_tcb;
+	tcb_buffer_addr->tid = thread_get_pid();        //主线程的编号为0 
+	fastmapper_add(&pid_mapper,main_tcb,0); 
+	fastmapper_init(&tcb_buffer_addr->fd_list,20);
 	tcb_buffer_addr->time_counter=0;
-	tcb_buffer_addr->time_left=TIME_OUT;
+	tcb_buffer_addr->time_left=TIME_CONT;
 	tcb_buffer_addr->task_status = TASK_RUNNING;
+	tcb_buffer_addr->page_counte=0;   //主线程不会被回收内存 所以可以任意赋值
+	tcb_buffer_addr->page_addr=0;
+	tcb_buffer_addr->next = tcb_buffer_addr;
+	tcb_buffer_addr->kern_stack_top=0;
+	tcb_buffer_addr->is_kern_thread = 1;
+	tcb_buffer_addr->tcb_magic_number = TCB_MAGIC_NUMBER;
+}
+void thread_release_pid(uint32_t pid)
+{
+	if(pid>=MAX_PID)return;
+	bitmap_set(&kpid_map,pid,0);
+}
+int thread_get_pid()
+{
+	int idx= bitmap_scan(&kpid_map,1);
+	if(idx<0)return -1;
+	bitmap_set(&kpid_map,idx,1);
+	return idx;
+}
+void threads_init(){
+	int use_page=ngx_align(MAX_PID/8,4096)/4096;
+	kpid_map.bits=kmalloc_page(use_page);
+	kpid_map.btmp_bytes_len=use_page*4096;
+	bitmap_init(&kpid_map);
+	fastmapper_init(&pid_mapper,20);
+	TCB_t *tcb_buffer_addr = &main_TCB;
+	_init_main_thread(&main_TCB);
+	cur_tcb = &main_TCB;
+}
+
+//用于创建线程的PCB
+TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
+	TCB_t * tcb_buffer_addr = (TCB_t*)page_addr;
+	tcb_buffer_addr->tid = tid; 
+	fastmapper_init(&tcb_buffer_addr->fd_list,20);
+	fastmapper_add(&pid_mapper,tcb_buffer_addr,tid);        
+	tcb_buffer_addr->time_counter=0;
+	tcb_buffer_addr->time_left=TIME_CONT;
+	tcb_buffer_addr->task_status = TASK_READY;
 	tcb_buffer_addr->page_counte=page_counte; 
 	tcb_buffer_addr->page_addr=page_addr;
-	tcb_buffer_addr->kern_stack_top=page_addr+page_counte*4096;
-	return page_addr;
+	tcb_buffer_addr->kern_stack_top=page_addr+page_counte*4096;    
+	tcb_buffer_addr->tcb_magic_number = TCB_MAGIC_NUMBER;
+	list_init(&tcb_buffer_addr->child_thread_list);
+	tcb_buffer_addr->parent_thread=0;
+	return (TCB_t*)page_addr;
 }
-void remove_thread(){
-	asm volatile("cli");
-	if(cur_task->tid==0)
-		printf("ERRO:main thread can`t use function exit\n");
-	else{
-		TCB_t *temp = cur_task;
-		for(;temp->next!=cur_task;temp=temp->next)
-			;
-		temp->next = cur_task->next;
-	}
-}
-void exit(){
-	remove_thread();
-	TCB_t *now = cur_task;
-	TCB_t *next_tcb = cur_task->next;
-	next_tcb->time_left = TIME_OUT;
-	cur_task = cur_task->next;
-	switch_to(&(now->context),&(next_tcb->context));
-	//注意 暂时没有回收此线程页
-}
-void create_thread(uint32_t tid,thread_function *func,void *args,uint32_t addr,uint32_t page_counte){	
+
+//创建最终线程的核心函数     创建用户进程以及创建内核线程的函数都是对这个函数的封装
+//会操作TCB链表 需要加锁
+void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint32_t addr,uint32_t page_counte,bool is_kern_thread,uint32_t pdt_vaddr,TCB_t *parent){	
 	asm volatile("cli");  //由于创建过程会使用到共享的数据 不使用锁的话会造成临界区错误 所以我们在此处关闭中断
 	TCB_t * new_tcb = create_TCB(tid,addr,page_counte);
-	TCB_t * temp_next = cur_task->next;
-	cur_task->next = new_tcb;
+	TCB_t * temp_next = cur_tcb->next;
+	cur_tcb->next = new_tcb;
 	new_tcb->next = temp_next;
+	new_tcb->is_kern_thread = is_kern_thread;
+	if(!is_kern_thread){
+		//用户进程需要填充页表等
+		//new_tcb->user_vmm_pool = user_vmm_pool;
+		//new_tcb->pdt_vaddr = pdt_vaddr;
+	}
 	*(--new_tcb->kern_stack_top)=args;     //压入初始化的参数与线程执行函数
 	*(--new_tcb->kern_stack_top)=exit;
 	*(--new_tcb->kern_stack_top)=func;
-	new_tcb->context.eflags = 0x200;
+	//此处存在修改！    0x200 ------->0x202    IF为1（打开硬中断）   IOPL为0（只允许内核访问IO）   1号位为1（eflags格式默认）
+	new_tcb->context.eflags = 0x202; 
 	new_tcb->context.esp =new_tcb->kern_stack_top;
+	new_tcb->parent_thread=parent;
+	new_tcb->name=strdup(name);
 	asm volatile("sti");	
 }
-void schedule(){      //调度函数  检测时间片为0时调用此函数
-	if(cur_task->next==cur_task){
-		cur_task->time_left = TIME_OUT;    //如果只有一个线程 就再次给此线程添加时间片
-		return ;
+
+/**
+ * @brief NOTICE 
+ *  
+ * This function is a simple way to realize fork in kernel area
+ * We simply use it to do some tests
+ * When we enter userland, we will discard this function
+ * 
+ * enjoy it!
+ */
+int kernel_fork()
+{
+	//1st check whether curtask is kernel
+	//If it is a kernel thread, the page_addr should be '0' since we didnt set it at all
+	//By the way, we cant fork kernel thread
+	if(get_running_progress()->is_kern_thread!=1)return -1;
+	cli();
+	context_t tmp_con;
+	//
+	uint32_t *now_ebp;
+
+	// register int r_ax asm("eax");
+	// register int r_bx asm("ebx");
+	// register int r_cx asm("ecx");
+	// register int r_dx asm("edx");
+	// register int r_di asm("edi");
+	// register int r_si asm("esi");
+	// tmp_con.ebx=r_bx;
+	// tmp_con.ecx=r_cx;
+	// tmp_con.edx=r_dx;
+	// tmp_con.edi=r_di;
+	// tmp_con.esi=r_si;
+	//printf("cur thread ebp:0x%x",tmp_con.ebp);
+	TCB_t *new_tcb=create_kern_thread(get_running_progress()->name,0,0);
+	list_append(&get_running_progress()->child_thread_list,&new_tcb->child_tag);
+	new_tcb->parent_thread=get_running_progress();
+	switch_get(&tmp_con);
+	new_tcb->context=tmp_con;
+	//1st copy stack data
+	
+	uint32_t stack_top=get_running_progress()->page_addr+get_running_progress()->page_counte*4096;
+	uint32_t stack_sz=stack_top-tmp_con.esp;
+	uint32_t new_stack_top=new_tcb->page_addr+new_tcb->page_counte*4096;
+
+	//2nd calc the esp and ebp
+	//printf("STAGE 1");
+	//switch_get(&tmp_con);
+	//printf("STAGE 2");
+	new_tcb->context=tmp_con;
+	printf("stack top:0x%x,esp:0x%x,ebp:0x%x;",stack_top,tmp_con.esp,tmp_con.ebp);
+	uint32_t offset_esp=stack_top- tmp_con.esp;
+	uint32_t offset_ebp=stack_top-tmp_con.ebp;
+	//3rd reset the register
+	new_tcb->context.esp=new_stack_top-offset_esp;
+	new_tcb->context.ebp=new_stack_top-offset_ebp;
+	
+	//new_tcb->fork_mark=1;//Dont understand? roll back to the head of the file
+	new_tcb->context.eax=114;
+	new_tcb->context.eflags=0x202;
+	//new_tcb->time_counter=0;
+	//new_tcb->time_left=TIME_CONT;
+	//int t= schedule();
+	//printf("latest exa:%d\n",t);
+	//fastmapper_add
+	//fastmapper_remove(&pid_mapper,new_tcb->tid);
+	printf("dst:0x%x,from:0x%x,sz:0x%x;",new_stack_top-stack_sz,stack_top-stack_sz,stack_sz);
+	memcpy(new_stack_top-stack_sz,stack_top-stack_sz,stack_sz);
+	if(get_running_progress()->tid==new_tcb->tid)
+	{
+		sti();
+		return 0;
 	}
-	TCB_t *now = cur_task;
-	TCB_t *next_tcb = cur_task->next;
-	next_tcb->time_left = TIME_OUT;
-	cur_task = next_tcb;
-	get_esp();      //有一个隐藏bug 需要call刷新寄存器
-	switch_to(&(now->context),&(next_tcb->context));      
+	sti();
+	return new_tcb->tid;
+}
+//内核线程必须要保证两点：
+//                                            1.func必须保证存在，不会被内存回收
+//                                            2.args必须保证存在， 不会被内存回收
+//内核线程的func与args都是内核内存空间中的     func通过函数定义的方式保存在os内核的程序段中 ，args保存在调用者函数的定义中，一旦调用者函数退出，args就会被回收
+//如何解决这个问题？  线程的创建者函数不能退出！！！使用特定指令阻塞对应的函数（join）
+//使用detach，在detach中实现线程将参数复制
+TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
+	//bitmap default_bitmap;
+	uint32_t page_counte = 1;
+	uint32_t TCB_page = kmalloc_page(1);
+	uint32_t default_pdt_vaddr = 0x0;
+	bool is_kern_thread = 1;
+    if(TCB_page==0){
+        printf("Can`t Create New User Task Because Of Error When Alloc TCB Page From Kernel VMM!STOP!");
+		return 0;
+    }
+	int tid=thread_get_pid();
+	if(tid==-1)
+	{
+		kfree_page(TCB_page,1);
+		return 0;
+	}
+	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,0);
+	return TCB_page;
+}
+int thread_add_fd(vfs_file_t* file)
+{
+	return fastmapper_add_auto(&get_running_progress()->fd_list,file);
+}
+
+vfs_file_t* thread_get_fd(int id)
+{
+	return fastmapper_get(&get_running_progress()->fd_list,id);
+}
+int schedule(){
+    //check if the thread module is available
+    if(get_running_progress()==NULL){
+        return ;
+    }
+    //调度函数  检测时间片为0时调用此函数
+	//首先判定现在的线程内核栈是否溢出
+	if(!check_kern_stack_overflow(get_running_progress())){
+		//溢出处理！！！
+		kern_overflow_handler(get_running_progress());
+	}
+
+	//find next thread
+    TCB_t * probe = cur_tcb;
+    while(1){
+        probe = probe->next;
+        if(probe==cur_tcb){
+            if(probe->task_status!=TASK_READY&&probe->task_status!=TASK_RUNNING){
+                // all of the threads are blocked,which is not allowed
+                //walk up cur thread
+                printf("ALL OF THE THREADS ARE BLOCKED,SELF WAKE UP ONE!WARNNING!");
+                cur_tcb->time_left = TIME_CONT;    //如果只有一个线程 就再次给此线程添加时间片
+                cur_tcb->task_status = TASK_RUNNING;
+                return ;
+            }
+            else{
+                //only cur thread can run
+                cur_tcb->time_left =TIME_CONT;
+                return ;
+            }
+        }
+        else{
+            if(probe->task_status== TASK_READY){
+                break;
+            }
+            else{
+                continue;
+            }
+        }
+    }
+	//进行调度
+	TCB_t *now = cur_tcb;
+	TCB_t *next_tcb = probe;
+
+	//if cur task is blocked,it will not be set ready or cur thread will running next schedule
+	if(now->task_status == TASK_RUNNING){
+	    now->task_status = TASK_READY;
+	}
+	next_tcb->task_status = TASK_RUNNING;
+	next_tcb->time_left = TIME_CONT;
+	cur_tcb = next_tcb;
+	//active_task(cur_tcb);
+	//printf("switch:%x-%x %d-%d;",now,next_tcb,now->tid,next_tcb->tid);
+	//printf("--->esp:%d eax:%d ebp:%d---><---esp:%d eax:%d ebp:%d\n",now->context.esp,now->context.eax,now->context.ebp,next_tcb->context.esp,next_tcb->context.eax,next_tcb->context.ebp);
+	get_esp();
+	switch_to(&(now->context),&(next_tcb->context));  
+	    
+}
+
+//block running threads , which must be called in kernel state(level 0)
+//however,when the task is in user state(level 3),can use
+//syscall to jump in kernel state, then invoke the function
+
+void thread_block(){
+    //cli and sti is used to sync to access the threads list and it`s node information
+    TCB_t* now = get_running_progress();
+    //bool condition=cli_condition();
+	cli();
+    now->task_status = TASK_BLOCKED;
+    schedule();
+    //reload the interrupt flag before block
+    sti();
+}
+
+void thread_wakeup(TCB_t * target_thread){
+    enum task_status_t restore_status = get_running_progress()->task_status;
+    cli();
+    target_thread->task_status = TASK_READY;
+    sti();
+}
+
+void remove_thread(){
+	cli();
+	if(cur_tcb->tid==0)
+		printf("ERRO:main thread can`t use function exit\n");
+	else{
+		TCB_t *temp = cur_tcb;
+		for(;temp->next!=cur_tcb;temp=temp->next)
+			;
+		temp->next = cur_tcb->next;
+	}
+}
+
+
+//本exit函数暂时只能被内核线程使用 作为自动退出
+void exit(){
+	remove_thread();
+	TCB_t *now = cur_tcb;
+	TCB_t *next_tcb = cur_tcb->next;
+	next_tcb->time_left = TIME_CONT;
+	cur_tcb = cur_tcb->next;
+	switch_to(&(now->context),&(next_tcb->context));
+	//注意 暂时没有回收此线程页
+}
+
+void wait_child_threads()
+{
+	
 }

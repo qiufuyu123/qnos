@@ -37,7 +37,7 @@ kobject_t* create_kobject(uint32_t(*begin)(uint32_t val),uint32_t(*end)(),kobjec
 {
     if(get_type_name(name)>-1)return 0;
     kobject_t*re=KOBJECT_ALLOC;
-    printf("kobj:0x%x",re);
+    //printf("kobj:0x%x",re);
     if(!re)return 0;
     re->begin=begin?begin:&non_begin;
     re->end=end?end:&non_end;
@@ -49,7 +49,7 @@ kobject_t* create_kobject(uint32_t(*begin)(uint32_t val),uint32_t(*end)(),kobjec
     if(!re->ops->read)re->ops->read=non_read;
     if(!re->ops->write)re->ops->write=non_write;
     int idx=search_in_list();
-    printf("idx%d",idx);
+    //printf("idx%d",idx);
     if(idx==-1)
     {
         free_in_slab_unit(re);
@@ -57,7 +57,7 @@ kobject_t* create_kobject(uint32_t(*begin)(uint32_t val),uint32_t(*end)(),kobjec
     }
     re->type=idx;
     kobj_list[idx]=re;
-    printf("allocok!\n");
+    //printf("allocok!\n");
     return re;
 }
 void init_all_objs()

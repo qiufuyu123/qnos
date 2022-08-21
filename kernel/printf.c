@@ -3,7 +3,7 @@
 #include<stdarg.h>
 static void printf_putchar( char c )
 {
-	Klogger.putchr(c);
+	Klogger->putchr(c);
 }
 
 static void putchar( char c)
@@ -13,7 +13,7 @@ static void putchar( char c)
 
 static void printf_putstring(char *s)
 {
-	Klogger.putstr(s);
+	Klogger->putstr(s);
 }
 
 static void printf_puthexdigit(uint8_t i)

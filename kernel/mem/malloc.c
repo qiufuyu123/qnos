@@ -156,7 +156,7 @@ uint32_t alloc_in_slab_unit(slab_unit_t* unit)
     kmem_elem_t*head=cur->free_data;
     cur->free_data=cur->free_data->next;
     cur->used_cnt++;
-    printf("alloc ok0x%x;",head);
+    //printf("alloc ok0x%x;",head);
     *(uint8_t*)((uint32_t)head-1)=cur->flag_sz;
     //printf("%d;",cur->used_cnt);
     return (uint32_t)head;
@@ -189,7 +189,7 @@ void free_in_slab_unit(uint32_t vaddr)
             kmem_elem_t *head= cur->free_data->next;
             cur->free_data=vaddr;
             cur->free_data->next=head;
-            printf("freeok:0x%x;",vaddr);   
+            //printf("freeok:0x%x;",vaddr);   
             cur->used_cnt--;
             return;
         }
@@ -210,6 +210,13 @@ uint32_t kmalloc(uint32_t size)
     else{
         return alloc_in_slab_unit(kslab_list[KSLAB_8]);
     }
+}
+uint32_t kcalloc(uint32_t size)
+{
+    uint32_t addr=kmalloc(size);
+    if(!addr)return 0;
+    memset(addr,0,size);
+    return addr;
 }
 void kfree(uint32_t vaddr)
 {
@@ -241,4 +248,22 @@ bool init_kslab()
     uint32_t addr2=alloc_in_slab_unit(kslab_list[1]);
     free_in_slab_unit(addr1);
     free_in_slab_unit(addr2);*/
+}
+uint32_t krealloc(uint32_t addr,uint32_t len)
+{
+    uint8_t *abs_sz=(uint8_t*)addr;
+    abs_sz--;
+    uint32_t sz_in_byte=kslab_list[*abs_sz]->unit_size;
+    printf("old:%dnew:%d;",sz_in_byte,len);
+    if(sz_in_byte<len)
+    {
+        uint32_t new_addr= kmalloc(len);
+        if(!new_addr)return 0;
+        memcpy(new_addr,addr,sz_in_byte);
+        //IMPORTANT
+        //Nobody wants to waste the memory right?
+        kfree(addr);
+        //^^^^^^^^^^
+        return new_addr;
+    }else return addr;
 }

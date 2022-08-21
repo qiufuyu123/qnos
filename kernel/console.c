@@ -91,7 +91,7 @@ void clear()
     cx=cy=0;
     flush_cursor();
 }
-kconsole_t Klogger={
+kconsole_t default_logger={
     .id=1,
     .init=init,
     .pause=pause,
@@ -99,5 +99,6 @@ kconsole_t Klogger={
     .putstr=putstr,
     .setcolor=setcolor,
     .setcurse=setcurse,
-    .cls=clear
+    .cls=clear,
+    .frame_buffer=0xb8000
 };

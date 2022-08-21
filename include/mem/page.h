@@ -42,4 +42,5 @@ void init_page();
 void page_map_unset(uint32_t vaddr);
 void page_map_set(uint32_t vaddr);
 page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr);
+void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value);
 #endif

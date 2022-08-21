@@ -52,7 +52,10 @@ bool init_kslab();
 uint32_t kmalloc_page(uint32_t pnum);
 void kfree_page(uint32_t vaddr,uint32_t pnum);
 uint32_t kmalloc(uint32_t size);
+uint32_t krealloc(uint32_t addr,uint32_t len);
+uint32_t kcalloc(uint32_t size);
 void kfree(uint32_t addr);
+
 slab_unit_t *alloc_slab_unit(uint32_t unit_size,char *name);
 uint32_t alloc_in_slab_unit(slab_unit_t* unit);
 void free_in_slab_unit(uint32_t vaddr);

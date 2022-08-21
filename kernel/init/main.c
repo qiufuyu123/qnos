@@ -1,4 +1,5 @@
 #include"types.h"
+#include"kelf.h"
 #include"boot/multiboot.h"
 #include"gates/gdt.h"
 #include"console.h"
@@ -13,7 +14,15 @@
 #include"process/task.h"
 #include"clock.h"
 #include"hardware/ata.h"
+#include"hardware/vga.h"
+#include"kobjects/obj_vfs.h"
+#include"process/sync.h"
+#include"utils/fastmapper.h"
+#include"process/symbol.h"
+#include"io.h"
+#include"utils/qconfig.h"
 #define VIDEO 0xB8000
+lock_t test_lock;
 extern uint32_t kstart,kend;
 static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默认为128M
 	uint32_t max_addr=0;
@@ -26,11 +35,70 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 }
 void test_t1(void *args)
 {
-    while(1)printf("taskA!;");
+    /*for (int i = 0; i < 10000000; i++)
+    {
+        printf("1");
+    }*/
+    
+    // //while(1)printf("taskA!;");
+    // printf("acquiring lock...(T1);");
+    // lock_acquire(&test_lock);
+    // //get_tick();
+    // printf("get the lock!(T1);");
+    // //ksleep(10000*2);
+    // printf("ready to release!;");
+    // lock_release(&test_lock);
+    // printf("release the lock!(T1);");
+    printf("T1 ready...;");
+    lock_acquire(&test_lock);
+    printf("T1 get lock!;");
+    
+    lock_release(&test_lock);
+    printf("T1 release lock!;");
+    printf("[%s];",get_running_progress()->name);
 }
 void test_t2(void *args)
 {
-    while(1)printf("taskB!;");
+    //     printf("acquiring lock...(T2);");
+    // lock_acquire(&test_lock);
+    // //get_tick();
+    // printf("get the lock!(T2);");
+    // ksleep(1000*2);
+    // //printf("ready to release;");
+    // lock_release(&test_lock);
+    // printf("release the lock!(T2);");
+    /*for (int i = 0; i < 10000000; i++)
+    {
+        printf("2");
+    }*/
+    /*printf("T2 ready...;");
+    lock_acquire(&test_lock);
+    printf("T2 get lock!;");
+    ksleep(2*1000);
+    lock_release(&test_lock);
+    printf("T2 release lock!;");
+    printf("[%s];",get_running_progress()->name);*/
+    
+    int ret=kernel_fork();
+    printf("ret from fork!;%d next:0x%x;",get_running_progress()->tid,test_t2);
+
+    if(ret==0)
+    {
+        printf("This is a forked thread!\n");
+        while (1)
+        {
+            /* code */
+        }
+    }else
+    {
+        printf("We fork a child thread:%d!\n",ret);
+        while (1)
+        {
+            /* code */
+        }
+        
+    }
+
 }
 int kernelmain(uint32_t magic,uint32_t addr)
 {
@@ -44,25 +112,25 @@ int kernelmain(uint32_t magic,uint32_t addr)
     init_idt();
     
     *((uint8_t*)VIDEO)='d';
-    Klogger.putstr("hello log!\n");
+    //Klogger.putstr("hello log!\n");
+    init_vga(mbi);
+    printf("[framebuffer:0x%x w:%d h:%d]\n",mbi->framebuffer_addr,mbi->framebuffer_width,mbi->framebuffer_height);
     //kstart=&kstart;
     //kend=&kend;
     init_memorylayout((uint32_t)&kstart,(uint32_t)&kend,get_max_pm_addr(mbi)/1024);
     //We set the value by its address because we prepare the addresses in linker.ld;
     printf("Kernel from 0x%x to 0x%x mem_size:0x%d bitmap:0x%x\n",kernel_mem_map.kstart,kernel_mem_map.kend,kernel_mem_map.total_mem_in_kb/1024,kernel_mem_map.phy_bitmap_addr);
+    //while(1);
     //asm volatile ("int $0x1");
     //asm volatile ("sti");
     //asm volatile ("int $0x2");
     init_page();
     init_vmm();
     init_timer();
-    init_task();
-    //clock_init();
-    //create_thread(1,&test_t1,0,kmalloc_page(1),1);
-    //create_thread(2,&test_t2,0,kmalloc_page(1),1);
+    
     
 
-    asm volatile("sti");//TODO: This code is necessary, but why?
+    
     /*uint32_t *t=kmalloc_page(1);
     *t=114514;
     printf("%d %x\n",*t,t);
@@ -70,8 +138,20 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //*t=233;//page fault!
     init_kslab();
     init_kobject();
+    threads_init();
+    //clock_init();
+    lock_init(&test_lock);
+    asm volatile("cli");//TODO: This code is necessary, but why?
+    create_kern_thread("1",&test_t1,0);
+    create_kern_thread("2",&test_t2,0);
+    //create_thread(1,&test_t1,0,kmalloc_page(1),1,1,0);
+    //create_thread(2,&test_t2,0,kmalloc_page(1),1,1,0);
     //init_ide();
+    asm volatile("sti");//TODO: This code is necessary, but why?
+    //while(1);
     ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
+    init_fslist();
+    
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
     //printf("buf is %x\n",buf);
@@ -91,6 +171,49 @@ int kernelmain(uint32_t magic,uint32_t addr)
     printf("%s\n",str_test);
     kfree(str_test);
     */
-    //printf("MEM INFO:[%d/%d]\n",pmm_get_used(),kernel_mem_map.total_mem_in_kb);
+    //
+    fastmapper_t test_map;
+    fastmapper_init(&test_map,10);
+    fastmapper_add(&test_map,114514,5);
+    fastmapper_add(&test_map,1919810,12);
+    printf("[get %d %d!];\n",fastmapper_get(&test_map,5),fastmapper_get(&test_map,12));
+    TCB_t*ttt=get_tcb(2);
+    printf("task : pid:%d name:%d kaddr:0x%x\n",ttt->tid,ttt->name,ttt->page_addr);
+    printf("MEM INFO:[%d/%d]\n",pmm_get_used(),kernel_mem_map.total_mem_in_kb);
+    //vfs_file_t*f= vfs_fopen("/boot/setup.ini",O_RDWR);
+    int fd=sys_open("/boot/setup.ini",O_RDONLY);
+    if(fd<0)printf("open setuo.ini fail!\n");
+    else
+    {
+        sys_lseek(fd,0,SEEK_END);
+        uint32_t sz=sys_tell(fd);
+        printf("SETUP.INI size:%d bytes",sz);
+        char *buf=kmalloc(sz);
+        sys_lseek(fd,0,SEEK_SET);
+        int ret=sys_read(fd,buf,sz);
+        printf("%d;%s",ret,buf);
+        struct read_ini *cfg=NULL;
+        struct ini*ini=read_ini(&cfg,"setup.ini",buf,sz);
+        ini_pp(ini);
+        qconfig_value_t*v= qconfig_get_value(ini,"c_cfg/showtext");
+        if(!v)printf("NULL V");
+        else printf("value:%d %s type:%d;",v->number,v->pure_str,v->type);
+    }
+    symbol_init();
+    
+    printf("printf:0x%x",symbol_find("printf"));
+    //fd=sys_open("/boot/test.sys",O_RDONLY);
+    uint32_t sys_addr;
+    fd= kread_all("/boot/test.sys",&sys_addr);
+    printf("sys module fd:%d 0x%x;",fd,sys_addr);
+    //printf("%s",sys_addr);
+    if(fd>=0)
+    {
+        //printf("relocating...");
+        elf_relocate(sys_addr);
+        //printf("getting sym...;");
+        int (*sys_init)()=elf_get_symbol(sys_addr,"init");
+        if(sys_init)printf("sys return:%d",sys_init());
+    }
     while(1);
 }

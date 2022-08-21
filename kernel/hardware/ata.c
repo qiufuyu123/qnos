@@ -861,7 +861,7 @@ unsigned char ide_atapi_read(unsigned char drive, unsigned int lba, unsigned cha
    return 0; // Easy, ... Isn't it?
 }            
 int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int lba,
-                      void *buffer) {
+                      uint8_t *buffer) {
  
    // 1: Check if the drive presents:
    // ==================================
@@ -879,7 +879,10 @@ int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int l
          err = ide_ata_access(ATA_READ, drive, lba, numsects,buffer);
       else if (ide_devices[drive].Type == IDE_ATAPI)
          for (int i = 0; i < numsects; i++)
+         {
             err = ide_atapi_read(drive, lba + i, 1, buffer);
+            buffer+=2048;
+         }
       return ide_print_error(drive, err);
    }
 }  

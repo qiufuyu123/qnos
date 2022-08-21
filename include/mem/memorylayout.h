@@ -54,6 +54,7 @@ typedef struct kmemorylayout
     uint32_t kfree_paddr_start;
 
     uint32_t user_base_addr_start;
+    uint32_t video_frambuffer_addr;
 }kmemorylayout_t;
 extern kmemorylayout_t kernel_mem_map;
 
@@ -63,5 +64,6 @@ void init_memorylayout(uint32_t kstart,uint32_t kend,uint32_t total_mem_in_kb);
 void pmm_init();
 uint32_t pmm_get_page();
 void pmm_free_page(uint32_t addr);
+void pmm_set_page(uint32_t paddr);
 uint32_t pmm_get_used();
 #endif

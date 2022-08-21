@@ -134,7 +134,7 @@ void isr_handler(registers_t regs)
    // Output an error message.
       printf("Page fault! ( ");
       if (present) {printf("present ");}
-      if (rw) {printf("read-only ");}
+      if (!rw) {printf("read-only ");}
       if (us) {printf("user-mode ");}
       if (reserved) {printf("reserved ");}
       printf(") at 0x");
