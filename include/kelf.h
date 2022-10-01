@@ -1,166 +1,293 @@
-#ifndef KERNEL_ELF_H
-#define KERNEL_ELF_H
+#pragma once
+
+/*
+elf文件加载（动态加载运行so）
+可用于嵌入式程序
+可用于Windows程序加载so
+
+用法流程：
+1 读取elf文件内容
+2 计算内存大小 elf_memory_size
+3 分配该大小可执行内存
+4 调用模块初始化 elf_module_init
+5 调用入口函数或指定名称的函数
+
+
+
+对于加载的elf目前存在限制：
+不支持依赖
+不支持非static全局变量
+不支持重定向表
+
+*/
 
 #include "types.h"
-#pragma pack (1)
-#define ELF_IDENTITY_MAGIC0     0x7F
-#define ELF_IDENTITY_MAGIC1     'E'
-#define ELF_IDENTITY_MAGIC2     'L'
-#define ELF_IDENTITY_MAGIC3     'F'
-#define ELF_IDENTITY_CLASS_NONE 0
-#define ELF_IDENTITY_CLASS_32   1
-#define ELF_IDENTITY_CLASS_64   2
-#define ELF_IDENTITY_DATA_NONE  0
-#define ELF_IDENTITY_DATA_2LSB  1
-#define ELF_IDENTITY_DATA_2MSB  2
+//#include <stdlib.h>
 
-#define ELF_TYPE_NONE        0x0000
-#define ELF_TYPE_RELOCATABLE 0x0001
-#define ELF_TYPE_EXECUTABLE  0x0002
-#define ELF_TYPE_DYNAMIC     0x0003
-#define ELF_TYPE_CORE        0x0004
-#define ELF_TYPE_LOPROC      0xFF00
-#define ELF_TYPE_HIPROC      0xFFFF
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define ELF_MACHINE_NONE  0x0000
-#define ELF_MACHINE_M32   0x0001
-#define ELF_MACHINE_SPARC 0x0002
-#define ELF_MACHINE_386   0x0003
-#define ELF_MACHINE_68K   0x0004
-#define ELF_MACHINE_88K   0x0005
-#define ELF_MACHINE_860   0x0007
-#define ELF_MACHINE_MIPS  0x0008
+#ifndef PACKED
+#ifdef _MSC_VER
+#define PACKED
+#define USE_PRAGMA_PACK
+#pragma warning(disable : 4819)
+#else
+#define PACKED __attribute__((packed))
+#endif
+#endif
 
-#define ELF_SECTION_INDEX_UNDEFINED 0x0000
-#define ELF_SECTION_INDEX_LORESERVE 0xFF00
-#define ELF_SECTION_INDEX_LOPROC    0xFF00
-#define ELF_SECTION_INDEX_HIPROC    0xFF1F
-#define ELF_SECTION_INDEX_ABS       0xFFF1
-#define ELF_SECTION_INDEX_COMMON    0xFFF2
-#define ELF_SECTION_INDEX_HIRESERVE 0xFFFF
+#ifdef USE_PRAGMA_PACK
+#pragma pack(push, 1)
+#endif
 
-#define ELF_SECTION_TYPE_NULL     0x00000000
-#define ELF_SECTION_TYPE_PROGBITS 0x00000001
-#define ELF_SECTION_TYPE_SYMTAB   0x00000002
-#define ELF_SECTION_TYPE_STRTAB   0x00000003
-#define ELF_SECTION_TYPE_RELA     0x00000004
-#define ELF_SECTION_TYPE_HASH     0x00000005
-#define ELF_SECTION_TYPE_DYNAMIC  0x00000006
-#define ELF_SECTION_TYPE_NOTE     0x00000007
-#define ELF_SECTION_TYPE_NOBITS   0x00000008
-#define ELF_SECTION_TYPE_REL      0x00000009
-#define ELF_SECTION_TYPE_SHLIB    0x0000000A
-#define ELF_SECTION_TYPE_DYNSYM   0x0000000B
-#define ELF_SECTION_TYPE_LOPROC   0x70000000
-#define ELF_SECTION_TYPE_HIPROC   0x7FFFFFFF
-#define ELF_SECTION_TYPE_LOUSER   0x80000000
-#define ELF_SECTION_TYPE_HIUSER   0xFFFFFFFF
 
-#define ELF_SECTION_FLAG_WRITE 0x00000001
-#define ELF_SECTION_FLAG_ALLOC 0x00000002
-#define ELF_SECTION_FLAG_EXEC  0x00000004
-#define ELF_SECTION_FLAG_MASK  0xF0000000
-typedef struct elf_header {
-	char identify[16];
-	uint16_t type;
-	uint16_t machine;
-	uint32_t version;
-	uint32_t entry;
-	uint32_t phoffset;
-	uint32_t shoffset;
-	uint32_t flags;
-	uint16_t header_size;
-	uint16_t phentsize;
-	uint16_t phnum;
-	uint16_t shentsize;
-	uint16_t shcount;
-	uint16_t shstrndx;
-}elf_header_t;
+// elf模块
+typedef struct elf_module elf_module;
 
-#define ELF_HEADER_TYPE_NONE         0
-#define ELF_HEADER_TYPE_OBJECT       1
-#define ELF_HEADER_TYPE_EXECUTABLE   2
-#define ELF_HEADER_TYPE_DYNAMIC      3
-#define ELF_HEADER_TYPE_CORE         4
+//验证elf格式是否正确，是否可加载， 正常返回0， 异常返回非0
+int elf_check(const uint8_t *elfdata, size_t elflen);
 
-#define ELF_HEADER_MACHINE_I386   3
-#define ELF_HEADER_MACHINE_ARM    40
-#define ELF_HEADER_MACHINE_X86_64 62
+//计算需分配内存大小
+size_t elf_memory_size(const uint8_t *elfdata, size_t elflen);
 
-#define ELF_HEADER_VERSION     1
+//初始化elf模块
+// mem 提前分配好的内存，需要可执行权限（需要内存大小可通过elf_memory_size计算得到）
+elf_module *elf_module_init(uint8_t *elfdata);
 
-typedef struct elf_program {
-	uint32_t type;
-	uint32_t offset;
-	uint32_t vaddress;
-	uint32_t paddr;
-	uint32_t file_size;
-	uint32_t memory_size;
-	uint32_t flags;
-	uint32_t align;
-}elf_program_t;
+//获取入口函数地址
+void *elf_module_entry(elf_module *m);
 
-#define ELF_PROGRAM_TYPE_LOADABLE 1
+//获取函数地址
+void *elf_module_sym(elf_module *m, const char *name);
+void elf_module_release(elf_module *m);
+// elf_check 返回结果
+#define ELF_CHECK_OK 0
+#define ELF_CHECK_ERR_LENGTH -1
+#define ELF_CHECK_ERR_MAGIC -2
+#define ELF_CHECK_ERR_TYPE -3
+#define ELF_CHECK_ERR_CLASS -4
+#define ELF_CHECK_ERR_ENDIAN -5
+#define ELF_CHECK_ERR_MACHINE -6
 
-typedef struct elf_section {
-	uint32_t name;
-	uint32_t type;
-	uint32_t flags;
-	uint32_t address;
-	uint32_t offset;
-	uint32_t size;
-	uint32_t link;
-	uint32_t info;
-	uint32_t alignment;
-	uint32_t esize;
-}elf_section_t;
 
-#define ELF_SECTION_TYPE_NULL         0
-#define ELF_SECTION_TYPE_PROGRAM      1
-#define ELF_SECTION_TYPE_SYMBOL_TABLE 2
-#define ELF_SECTION_TYPE_STRING_TABLE 3
-#define ELF_SECTION_TYPE_RELA         4
-#define ELF_SECTION_TYPE_HASH         5
-#define ELF_SECTION_TYPE_DYNAMIC      6
-#define ELF_SECTION_TYPE_NOTE         7
-#define ELF_SECTION_TYPE_BSS          8
 
-#define ELF_SECTION_FLAGS_WRITE    1
-#define ELF_SECTION_FLAGS_MEMORY   2
-#define ELF_SECTION_FLAGS_EXEC     8
-#define ELF_SECTION_FLAGS_MERGE    16
-#define ELF_SECTION_FLAGS_STRINGS  32
-#define ELF_SECTION_FLAGS_INFO_LINK 64
-#define ELF_SECTION_FLAGS_LINK_ORDER 128
-#define ELF_SECTION_FLAGS_NONSTANDARD 256
-#define ELF_SECTION_FLAGS_GROUP 512
-#define ELF_SECTION_FLAGS_TLS 1024
+// elf 头
 
-//int a=sizeof(struct elf_section_header);
-struct elf_symbol {
+typedef struct PACKED elf32_header {
+    uint8_t magic[4];  // 固定头
+    uint8_t cls;  //32位/64位
+    uint8_t endian;  //大小端
+    uint8_t rev;  
+    uint8_t abi;  //abi类型
+    uint8_t pad[8]; 
+    uint16_t type;      // 文件类型
+    uint16_t machine;   // cpu类型
+    uint32_t version;   // 文件版本
+    uint32_t entry;    // 入口函数偏移
+    uint32_t phoff;    // program header 偏移
+    uint32_t shoff;    // section header 偏移
+    uint32_t flags;     // 选项
+    uint16_t ehsize;    // elf header 大小
+    uint16_t phentsize; // program header 大小
+    uint16_t phnum;     // program header 个数
+    uint16_t shentsize; // section header  大小
+    uint16_t shnum;     // section header  个数
+    uint16_t shstrndx;  // section header  字符串表索引
+} elf32_header;
+
+typedef struct PACKED elf64_header {
+    uint8_t magic[4];  // 固定头
+    uint8_t cls;  //32位/64位
+    uint8_t endian;  //大小端
+    uint8_t rev;  
+    uint8_t abi;  //abi类型
+    uint8_t pad[8];
+    uint16_t type;      // 文件类型
+    uint16_t machine;   // cpu类型
+    uint32_t version;   // 文件版本
+    uint64_t entry;    // 入口函数偏移
+    uint64_t phoff;    // program header 偏移
+    uint64_t shoff;    // section header 偏移
+    uint32_t flags;     // 选项
+    uint16_t ehsize;    // elf header 大小
+    uint16_t phentsize; // program header 大小
+    uint16_t phnum;     // program header 个数
+    uint16_t shentsize; // section header  大小
+    uint16_t shnum;     // section header  个数
+    uint16_t shstrndx;  // section header  字符串表索引
+} elf64_header;
+
+typedef struct PACKED elf32_program_header {
+    uint32_t type;
+    uint32_t offset;
+    uint32_t vaddr;
+    uint32_t paddr;
+    uint32_t filesz;
+    uint32_t memsz;
+    uint32_t flags;
+    uint32_t align;
+} elf32_program_header;
+
+typedef struct PACKED elf64_program_header {
+    uint32_t type;
+    uint32_t flags;
+    uint64_t offset;
+    uint64_t vaddr;
+    uint64_t paddr;
+    uint64_t filesz;
+    uint64_t memsz;
+    uint64_t align;
+} elf64_program_header;
+
+typedef struct {
+    int32_t    d_tag;    /* controls meaning of d_val */
+    union {
+        uint32_t d_val;    /* Multiple meanings - see d_tag */
+        uint32_t d_ptr;    /* program virtual address */
+    } d_un;
+} elf_dynentry;
+typedef struct PACKED elf32_section_header {
     uint32_t name;
-    uint32_t value;
+    uint32_t type;
+    uint32_t flags;
+    uint32_t addr;
+    uint32_t offset;
     uint32_t size;
-    uint8_t info;
-    uint8_t other;
-    uint16_t shindex;
-}PACKED;
-
-struct elf_relocate {
-    uint32_t offset;
+    uint32_t link;
     uint32_t info;
-}PACKED;
+    uint32_t align;
+    uint32_t entsize;
+} elf32_section_header;
 
-struct elf_relocatea {
-    uint32_t offset;
+typedef struct PACKED elf64_section_header {
+    uint32_t name;
+    uint32_t type;
+    uint64_t flags;
+    uint64_t addr;
+    uint64_t offset;
+    uint64_t size;
+    uint32_t link;
     uint32_t info;
-    uint32_t addend;
-}PACKED;
+    uint64_t align;
+    uint64_t entsize;
+} elf64_section_header;
 
-uint32_t elf_get_entry(void *address);
-uint32_t elf_get_virtual(void *address);
-uint32_t elf_get_symbol(void *address, const int8_t *name);
-void elf_prepare(void *address);
-void elf_relocate(void *address);
 
+typedef struct PACKED elf32_symbol {
+    uint32_t name;          //字符串表索引
+    uint32_t value;        //值
+    uint32_t size;          //大小
+    uint8_t type : 4;       //类型
+    uint8_t bind : 4;       // bind类型
+    uint8_t visibility : 2; //可见性
+    uint8_t rev : 6;
+    uint16_t shndx; 
+} elf32_symbol;
+
+typedef struct PACKED elf64_symbol {
+    uint32_t name;          //字符串表索引
+    uint8_t type : 4;       //类型
+    uint8_t bind : 4;       // bind类型
+    uint8_t visibility : 2; //可见性
+    uint8_t rev : 6;
+    uint16_t shndx;  // section索引
+    uint64_t value; //值
+    uint64_t size;  //大小
+} elf64_symbol;
+
+
+#define ELF_MAGIC_0 0x7f
+#define ELF_MAGIC_1 'E'
+#define ELF_MAGIC_2 'L'
+#define ELF_MAGIC_3 'F'
+
+
+#define ELF_TYPE_REL 1  //编译中间 .o
+#define ELF_TYPE_EXEC 2 // 可执行文件 
+#define ELF_TYPE_DYN 3  // 动态库 .so
+
+#define ELF_MACHINE_X86 3     
+#define ELF_MACHINE_X86_64 62 
+#define ELF_MACHINE_ARM 40  
+#define ELF_MACHINE_AARCH64 183
+
+#define ELF_CLASS_32 1
+#define ELF_CLASS_64 2
+
+#define ELF_ENDIAN_LITTLE 1 //小端
+#define ELF_ENDIAN_BIG   2 //大端
+
+
+
+
+
+#define ELF_PROGRAM_TYPE_LOAD 1
+#define ELF_PROGRAM_TYPE_DYNAMIC 2
+#define ELF_PROGRAM_TYPE_INTERP 3
+#define ELF_PROGRAM_TYPE_NOTE 4
+#define ELF_PROGRAM_TYPE_SHLIB 5
+#define ELF_PROGRAM_TYPE_PHDR 6
+#define ELF_PROGRAM_TYPE_TLS 7
+
+#define ELF_PROGRAM_FLAG_X (1 << 0)
+#define ELF_PROGRAM_FLAG_W (1 << 1)
+#define ELF_PROGRAM_FLAG_R (1 << 2)
+
+#define ELF_SECTION_TYPE_PROGBITS 1
+#define ELF_SECTION_TYPE_SYMTAB 2
+#define ELF_SECTION_TYPE_STRTAB 3
+#define ELF_SECTION_TYPE_RELA 4
+#define ELF_SECTION_TYPE_HASH 5
+#define ELF_SECTION_TYPE_DYNAMIC 6
+#define ELF_SECTION_TYPE_NOTE 7
+#define ELF_SECTION_TYPE_NOBITS 8
+#define ELF_SECTION_TYPE_REL 9
+#define ELF_SECTION_TYPE_SHLIB 10
+#define ELF_SECTION_TYPE_DYNSYM 11
+#define ELF_SECTION_TYPE_INIT_ARRAY 14
+#define ELF_SECTION_TYPE_FINI_ARRAY 15
+#define ELF_SECTION_TYPE_PREINIT_ARRAY 16
+#define ELF_SECTION_TYPE_GROUP 17
+#define ELF_SECTION_TYPE_SYMTAB_SHNDX 18
+
+#define ELF_SECTION_FLAG_WRITE (1 << 0)
+#define ELF_SECTION_FLAG_ALLOC (1 << 1)
+#define ELF_SECTION_FLAG_EXECINSTR (1 << 2)
+#define ELF_SECTION_FLAG_MERGE (1 << 4)
+#define ELF_SECTION_FLAG_STRINGS (1 << 5)
+#define ELF_SECTION_FLAG_INFO_LINK (1 << 6)
+#define ELF_SECTION_FLAG_LINK_ORDER (1 << 7)
+#define ELF_SECTION_FLAG_OS_NONCONFORMING (1 << 8)
+#define ELF_SECTION_FLAG_GROUP (1 << 9)
+#define ELF_SECTION_FLAG_TLS (1 << 10)
+#define ELF_SECTION_FLAG_COMPRESSED (1 << 11)
+
+
+#define ELF_SYMBOL_BIND_LOCAL 0
+#define ELF_SYMBOL_BIND_GLOBAL 1
+#define ELF_SYMBOL_BIND_WEAK 2
+
+#define ELF_SYMBOL_TYPE_NOTYPE 0
+#define ELF_SYMBOL_TYPE_OBJECT 1
+#define ELF_SYMBOL_TYPE_FUNC 2
+#define ELF_SYMBOL_TYPE_SECTION 3
+#define ELF_SYMBOL_TYPE_FILE 4
+#define ELF_SYMBOL_TYPE_COMMON 5
+#define ELF_SYMBOL_TYPE_TLS 6
+
+#define ELF_SYMBOL_VISIBILITY_DEFAULT 0
+#define ELF_SYMBOL_VISIBILITY_INTERNAL 1
+#define ELF_SYMBOL_VISIBILITY_HIDDEN 2
+#define ELF_SYMBOL_VISIBILITY_PROTECTED 3
+
+
+
+#ifdef USE_PRAGMA_PACK
+#pragma pack(pop)
+#endif
+
+#ifdef __cplusplus
+}
 #endif

@@ -6,6 +6,8 @@
 #include"mem/page.h"
 #include"string.h"
 #include"utils/fastmapper.h"
+#include"gates/tss.h"
+#include"process/syscall.h"
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
@@ -120,7 +122,35 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 	new_tcb->name=strdup(name);
 	asm volatile("sti");	
 }
+void switch_to_user_mode() {
+			    // Set up a stack structure for switching to user mode.	
+	//cli();
+	printf("before tss");
+	tss_update(get_running_progress());
+	printf("after tss");
+   asm volatile("  \
+      cli; \
+      mov $0x23, %ax; \
+      mov %ax, %ds; \
+      mov %ax, %es; \
+      mov %ax, %fs; \
+      mov %ax, %gs; \
+                    \
+       \
+      mov %esp, %eax; \
+      pushl $0x23; \
+      pushl %esp; \
+      pushf; \
+	  pop %eax; \
+	  mov $0x202,%eax;\
+	  push %eax;\
+      pushl $0x1B; \
+      push $1f; \
+      iret; \
+    1: \
+      "); 
 
+			}
 /**
  * @brief NOTICE 
  *  
@@ -195,6 +225,46 @@ int kernel_fork()
 	sti();
 	return new_tcb->tid;
 }
+
+int _user_task_func(void *args)
+{
+	// int (*func)()=args;
+	// printf("func address:0x%x",func);
+	// uint8_t *ptr=0x80000000;
+	// *ptr=123;
+	// printf("test user pdt:%d",*ptr);
+	// int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
+	// printf("fd is %d;",fd);
+	// sys_read(fd,ptr,4096);
+	// func=ptr;
+	switch_to_user_mode();
+	__base_syscall(0,1,2,3,4);
+	//printf("get ret:%d;",func());
+	while(1);
+	//while (1);
+	// {
+	// 	/* code */
+	// }
+	
+	
+	func();
+	while(1);
+	//thread_function *func=args; 114;
+}
+TCB_t *create_user_thread(char *name,void *args)
+{
+	cli();
+	TCB_t *new_tcb=create_kern_thread(name,_user_task_func,args);
+	
+	new_tcb->is_kern_thread=0;
+	//new_tcb->is_kern_thread=0;
+	new_tcb->pdt_vaddr=page_clone_cleaned_page();
+	page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
+	sti();
+	return new_tcb;
+}
+
+
 //内核线程必须要保证两点：
 //                                            1.func必须保证存在，不会被内存回收
 //                                            2.args必须保证存在， 不会被内存回收
@@ -217,7 +287,7 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 		kfree_page(TCB_page,1);
 		return 0;
 	}
-	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,0);
+	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,&main_TCB);
 	return TCB_page;
 }
 int thread_add_fd(vfs_file_t* file)
@@ -264,6 +334,11 @@ int schedule(){
             if(probe->task_status== TASK_READY){
                 break;
             }
+			else if(probe->task_status==TASK_DIED)
+			{
+				//TODO: CLEAN UP THE DIE THREAD
+				continue;
+			}
             else{
                 continue;
             }
@@ -284,10 +359,15 @@ int schedule(){
 	//printf("switch:%x-%x %d-%d;",now,next_tcb,now->tid,next_tcb->tid);
 	//printf("--->esp:%d eax:%d ebp:%d---><---esp:%d eax:%d ebp:%d\n",now->context.esp,now->context.eax,now->context.ebp,next_tcb->context.esp,next_tcb->context.eax,next_tcb->context.ebp);
 	get_esp();
+	active_task(next_tcb);
 	switch_to(&(now->context),&(next_tcb->context));  
 	    
 }
-
+void thread_add_child(TCB_t*parent,TCB_t*child)
+{
+	child->parent_thread=parent;
+	list_append(&parent->child_thread_list,&child->child_tag);
+}
 //block running threads , which must be called in kernel state(level 0)
 //however,when the task is in user state(level 3),can use
 //syscall to jump in kernel state, then invoke the function
@@ -301,6 +381,12 @@ void thread_block(){
     schedule();
     //reload the interrupt flag before block
     sti();
+}
+void thread_die(TCB_t*target_thread)
+{
+	cli();
+	target_thread->task_status=TASK_DIED;
+	sti();
 }
 
 void thread_wakeup(TCB_t * target_thread){
@@ -330,6 +416,7 @@ void exit(){
 	TCB_t *next_tcb = cur_tcb->next;
 	next_tcb->time_left = TIME_CONT;
 	cur_tcb = cur_tcb->next;
+	printf("thread:%d exit with code:%d;",now->tid,now->context.eax);
 	switch_to(&(now->context),&(next_tcb->context));
 	//注意 暂时没有回收此线程页
 }

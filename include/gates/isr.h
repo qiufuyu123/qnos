@@ -1,13 +1,15 @@
 #ifndef _H_ISR
 #define _H_ISR
 #include"types.h"
-typedef struct registers
+#pragma pack(1)
+ struct registers
 {
    uint32_t ds;                  // Data segment selector
-   uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax; // Pushed by pusha.
+   uint32_t edi, esi, ebp, useless_value, ebx, edx, ecx, eax; // Pushed by pusha.
    uint32_t int_no, err_code;    // Interrupt number and error code (if applicable)
-   uint32_t eip, cs, eflags, useresp, ss; // Pushed by the processor automatically.
-} registers_t;
+   uint32_t eip, cs, eflags, esp, ss; // Pushed by the processor automatically.
+} PACKED;
+typedef struct registers registers_t;
 extern void isr0();
 extern void isr1();
 extern void isr2();

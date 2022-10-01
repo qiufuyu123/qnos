@@ -87,7 +87,7 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 TCB_t* create_kern_thread(char *name,thread_function *func,void *args);
 
 void threads_init();    //线程模块初始化 需要把主线程加入运行表中
-
+TCB_t *create_user_thread(char *name,void *args);
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte);
 
 TCB_t* get_running_progress();
@@ -98,7 +98,11 @@ void thread_wakeup(TCB_t * target_thread);
 
 int thread_add_fd(vfs_file_t* file);
 
-vfs_file_t* thread_get_fd(int id);
+void thread_add_child(TCB_t*parent,TCB_t*child);
 
+void thread_die(TCB_t*target_thread);
+
+vfs_file_t* thread_get_fd(int id);
+void active_task(TCB_t *task);
 void exit();     //线程结束函数 关闭中断->移出执行链表->回收内存空间->开启中断
 #endif

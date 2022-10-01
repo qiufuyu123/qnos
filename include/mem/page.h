@@ -33,14 +33,19 @@ typedef struct page_table
 typedef struct page_directory
 {
     page_table_t* ptable[1024];
-    uint32_t  *ptable_dir;  //The 1st page table which we should put to the cr0
+    uint32_t  *ptable_dir;  //The 1st page table which we should put to the cr04
+    uint32_t cr0_paddr;
 }page_directory_t;
 extern page_directory_t kpdir;
 void init_page();
-
+page_directory_t *page_clone_cleaned_page();
+uint32_t page_kv2p(uint32_t va);
 //int alloc_page(page_t *p,bool is_kernel,bool writeable);
 void page_map_unset(uint32_t vaddr);
 void page_map_set(uint32_t vaddr);
 page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr);
 void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value);
+void page_u_map_set(page_directory_t*pdir,uint32_t vaddr);
+void page_setup_pdt(page_directory_t*p);
+void page_setup_kernel_pdt();
 #endif

@@ -1,6 +1,7 @@
 #include"string.h"
 #include"console.h"
 #include<stdarg.h>
+
 static void printf_putchar( char c )
 {
 	Klogger->putchr(c);

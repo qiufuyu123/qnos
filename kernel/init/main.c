@@ -3,9 +3,11 @@
 #include"boot/multiboot.h"
 #include"gates/gdt.h"
 #include"console.h"
+#include"KMDK/KMDK.h"
 #include"string.h"
 #include"gates/idt.h"
 #include"hardware/timer.h"
+#include"hardware/keyboard/keyboard.h"
 #include"mem/page.h"
 #include"mem/memorylayout.h"
 #include"mem/vmm.h"
@@ -21,8 +23,12 @@
 #include"process/symbol.h"
 #include"io.h"
 #include"utils/qconfig.h"
+#include"utils/circlequeue.h"
+#include"sysmodule.h"
+#include"process/syscall.h"
 #define VIDEO 0xB8000
 lock_t test_lock;
+sysmodule_t*t_m;
 extern uint32_t kstart,kend;
 static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默认为128M
 	uint32_t max_addr=0;
@@ -56,6 +62,13 @@ void test_t1(void *args)
     lock_release(&test_lock);
     printf("T1 release lock!;");
     printf("[%s];",get_running_progress()->name);
+    while (1)
+    {
+        uint8_t c= keyboard_get_key();
+        if(c)printf("%c",c);
+        /* code */
+    }
+    
 }
 void test_t2(void *args)
 {
@@ -100,6 +113,23 @@ void test_t2(void *args)
     }
 
 }
+int test_user_task(void *argv)
+{
+    //printf("USER MODE!");
+    int a=0;
+   
+    //asm volatile("int $0x80" : "=a" (a) : "0" (a), "b" ((int)t_m->user_main_thread), "c" ((int)a),"d"((int)a),"D"((int)a));
+    __base_syscall(0,1,2,3,4);
+    //t_m->user_main_thread(0,0);
+    
+    //test_func_call();
+    while (1)
+    {
+        /* code */
+    }
+    
+    return 114;
+}
 int kernelmain(uint32_t magic,uint32_t addr)
 {
     multiboot_info_t *mbi;
@@ -139,6 +169,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     init_kslab();
     init_kobject();
     threads_init();
+    keyboard_init();
     //clock_init();
     lock_init(&test_lock);
     asm volatile("cli");//TODO: This code is necessary, but why?
@@ -147,10 +178,11 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //create_thread(1,&test_t1,0,kmalloc_page(1),1,1,0);
     //create_thread(2,&test_t2,0,kmalloc_page(1),1,1,0);
     //init_ide();
+    
     asm volatile("sti");//TODO: This code is necessary, but why?
     //while(1);
-    ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
-    init_fslist();
+    //ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
+    //init_fslist();
     
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
@@ -181,39 +213,89 @@ int kernelmain(uint32_t magic,uint32_t addr)
     printf("task : pid:%d name:%d kaddr:0x%x\n",ttt->tid,ttt->name,ttt->page_addr);
     printf("MEM INFO:[%d/%d]\n",pmm_get_used(),kernel_mem_map.total_mem_in_kb);
     //vfs_file_t*f= vfs_fopen("/boot/setup.ini",O_RDWR);
-    int fd=sys_open("/boot/setup.ini",O_RDONLY);
-    if(fd<0)printf("open setuo.ini fail!\n");
-    else
+    // int fd=sys_open("/boot/setup.ini",O_RDONLY);
+    // if(fd<0)printf("open setuo.ini fail!\n");
+    // else
+    // {
+    //     sys_lseek(fd,0,SEEK_END);
+    //     uint32_t sz=sys_tell(fd);
+    //     printf("SETUP.INI size:%d bytes",sz);
+    //     char *buf=kmalloc(sz);
+    //     sys_lseek(fd,0,SEEK_SET);
+    //     int ret=sys_read(fd,buf,sz);
+    //     printf("%d;%s",ret,buf);
+    //     struct read_ini *cfg=NULL;
+    //     struct ini*ini=read_ini(&cfg,"setup.ini",buf,sz);
+    //     ini_pp(ini);
+    //     qconfig_value_t*v= qconfig_get_value(ini,"c_cfg/showtext");
+    //     if(!v)printf("NULL V");
+    //     else printf("value:%d %s type:%d;",v->number,v->pure_str,v->type);
+    // }
+    // symbol_init();
+    circlequeue_t test_queue;
+    circlequeue_init(&test_queue,5,1);
+    const char *tstr="ABCDEFG";
+    for (int i = 0; i < 6; i++)
     {
-        sys_lseek(fd,0,SEEK_END);
-        uint32_t sz=sys_tell(fd);
-        printf("SETUP.INI size:%d bytes",sz);
-        char *buf=kmalloc(sz);
-        sys_lseek(fd,0,SEEK_SET);
-        int ret=sys_read(fd,buf,sz);
-        printf("%d;%s",ret,buf);
-        struct read_ini *cfg=NULL;
-        struct ini*ini=read_ini(&cfg,"setup.ini",buf,sz);
-        ini_pp(ini);
-        qconfig_value_t*v= qconfig_get_value(ini,"c_cfg/showtext");
-        if(!v)printf("NULL V");
-        else printf("value:%d %s type:%d;",v->number,v->pure_str,v->type);
+        printf("push:%d;",circlequeue_push(&test_queue,&tstr[i]));
     }
-    symbol_init();
-    
-    printf("printf:0x%x",symbol_find("printf"));
+    for (int i = 0; i < 6; i++)
+    {
+        char *s= circlequeue_get(&test_queue);
+        if(s)printf("get:%c;",*s);
+        else printf("fail get!");
+    }
+    //printf("printf:0x%x",symbol_find("printf"));
     //fd=sys_open("/boot/test.sys",O_RDONLY);
-    uint32_t sys_addr;
-    fd= kread_all("/boot/test.sys",&sys_addr);
-    printf("sys module fd:%d 0x%x;",fd,sys_addr);
+    uint32_t sys_addr,pgn;
+    //fd= kread_all("/boot/test.sys",&sys_addr,&pgn);
+   // printf("sys module fd:%d 0x%x;",fd,sys_addr);
+
     //printf("%s",sys_addr);
-    if(fd>=0)
+    //int m=1;
+
+    // if(fd>=0)
+    // {
+    //     t_m= load_sys_module("/boot/sys/test.sys");
+    //     printf("fuser:0x%x",t_m->user_main_thread);
+    //     if(t_m)
+    //     {
+    //     sys_module_dump(t_m);
+    //     execute_sys_module(t_m);
+    //     }
+    //     //struct elf_module*e= elf_module_init(sys_addr);
+    //     //int (*init_func)() =elf_module_sym(e,"init");
+    //     //uint32_t r=init_func();
+    //     //printf("%s",r);
+    //     //KMDKInfo_t**k2=elf_module_sym(e,"__KM_SETUP_INFO_");
+    //     //KMDKInfo_t*k=*k2;
+    //     //KMDKInfo_t kk=elf_module_sym(e,"km_info");
+    //     //if(k)
+    //     //{
+    //     //    printf("Addr:0x%xName:%s Des:%s Ver:%d.%d.%d",k,k->name,k->description,k->versions[0],k->versions[1],k->versions[2]);
+    //     //}
+    //     //printf("relocating...");
+    //     //elf_relocate(sys_addr);
+    //     //printf("getting sym...;");
+    //     //int (*sys_init)()=elf_get_symbol(sys_addr,"init");
+    //     //if(sys_init)printf("sys return:%d",sys_init());
+    //     //sysmodule_t *m=load_sys_module("/boot/test.sys");
+    //     //if(m)
+    //     //{
+    //     //    printf("load sysmodule,type:%d;",m->sys_type);
+    //     //    if(m->name)printf("%s;",m->name);
+    //         //execute_sys_module(m);
+    //     //}
+    // }
+    //sti();
+    init_syscall();
+    printf("user adddress:0x%x;",test_user_task);
+    create_user_thread("test_user",test_user_task);
+    //jump_usermode();
+    //switch_to_user_mode();
+    while(1)
     {
-        //printf("relocating...");
-        elf_relocate(sys_addr);
-        //printf("getting sym...;");
-        int (*sys_init)()=elf_get_symbol(sys_addr,"init");
-        if(sys_init)printf("sys return:%d",sys_init());
+
+        //if(c)printf("%x",c);
     }
-    while(1);
 }

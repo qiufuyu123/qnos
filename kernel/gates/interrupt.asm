@@ -20,7 +20,7 @@ gdt_flush:
   isr%1:
     cli
     push byte 0
-    push byte %1
+    push %1
     jmp isr_common_stub
 %endmacro
 
@@ -36,7 +36,7 @@ gdt_flush:
   irq%1:
     cli
     push byte 0
-    push byte %2
+    push %2
     jmp irq_common_stub
 %endmacro
 [GLOBAL idt_flush]    ; Allows the C code to call idt_flush().
@@ -78,6 +78,7 @@ ISR_NOERRCODE 28
 ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
+ISR_NOERRCODE 128
 IRQ 0,32
 IRQ 1,33
 IRQ 2,34
@@ -94,6 +95,7 @@ IRQ 12,44
 IRQ 13,45
 IRQ 14,46
 IRQ 15,47
+
 [EXTERN irq_handler]
 
 ; This is our common IRQ stub. It saves the processor state, sets
@@ -153,3 +155,30 @@ isr_common_stub:
    add esp, 8     ; Cleans up the pushed error code and pushed ISR number
    sti
    iret           ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
+
+
+   [GLOBAL tss_flush]    ; Allows our C code to call tss_flush().
+tss_flush:
+   mov ax, 0x2B      ; Load the index of our TSS structure - The index is
+                     ; 0x28, as it is the 5th selector and each is 8 bytes
+                     ; long, but we set the bottom two bits (making 0x2B)
+                     ; so that it has an RPL of 3, not zero.
+   ltr ax            ; Load 0x2B into the task state register.
+   ret
+
+;C语言原型     void *  exit_int(void* esp)     esp必须是栈指针（地址）
+[GLOBAL exit_int]
+exit_int:
+  mov eax,[esp+4]
+  mov esp,eax       ;修改栈位置
+  ;以下部分是模拟中断中的执行返回(见interrupt_asm.s)
+
+     pop eax        ; reload the original data segment descriptor
+   mov ds, ax
+   mov es, ax
+   mov fs, ax
+   mov gs, ax
+
+   popa                     ; Pops edi,esi,ebp...
+   add esp, 8     ; Cleans up the pushed error code and pushed ISR number
+  iret

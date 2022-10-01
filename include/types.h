@@ -12,6 +12,7 @@ typedef  short int16_t;
 typedef  int int32_t;
 typedef  long long int64_t;
 typedef unsigned char bool;
+typedef uint32_t size_t;
 #define FALSE 0
 #define TRUE 1
 #define false FALSE

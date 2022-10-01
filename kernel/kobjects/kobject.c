@@ -3,6 +3,7 @@
 #include"string.h"
 #include"kobjects/kobjs.h"
 #include"console.h"
+#include"utils/qhash.h"
 kobject_t *kobj_list[KOBJ_MAX];
 slab_unit_t *kobj_slab;
 NONE_OPEN
@@ -24,11 +25,12 @@ int search_in_list()
 }
 int get_type_name(char *name)
 {
+    uint32_t hash=get_qhash(name);
     for (int i = 0; i < KOBJ_MAX; i++)
     {
         if(kobj_list[i])
         {
-            if(!strcmp(name,kobj_list[i]->name))return i;
+            if(hash==kobj_list[i]->name_hash)return i;
         }
     }
     return -1;    
@@ -56,7 +58,9 @@ kobject_t* create_kobject(uint32_t(*begin)(uint32_t val),uint32_t(*end)(),kobjec
         return 0;
     }
     re->type=idx;
+    re->name_hash=get_qhash(name);
     kobj_list[idx]=re;
+    re->begin(re);
     //printf("allocok!\n");
     return re;
 }
@@ -77,4 +81,10 @@ kobject_operations_t *kobject_get_ops(uint32_t type)
 {
     if(type>=KOBJ_MAX)return 0;
     return kobj_list[type]->ops;
+}
+void release_kobject(kobject_t*ko)
+{
+    kobj_list[ko->type]=0;
+    ko->end();
+    kfree(ko);
 }

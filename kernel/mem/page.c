@@ -3,6 +3,7 @@
 #include"console.h"
 #include"mem/memorylayout.h"
 #include"string.h"
+#include"mem/malloc.h"
 page_directory_t kpdir;
 static inline void invlpg(void* m)
 {
@@ -12,12 +13,13 @@ static inline void invlpg(void* m)
 void switch_page_directory(page_directory_t *dir)
 {
    //current_directory = dir;
-   asm volatile("mov %0, %%cr3":: "r"(dir->ptable_dir));
+   asm volatile("mov %0, %%cr3":: "r"(dir->cr0_paddr));
    uint32_t cr0;
    asm volatile("mov %%cr0, %0": "=r"(cr0));
    cr0 |= 0x80000000; // Enable paging!
    asm volatile("mov %0, %%cr0":: "r"(cr0));
 }
+
 int alloc_page(page_t *p,bool is_kernel,bool writeable)
 {
     if(!p)return-1;
@@ -103,19 +105,19 @@ void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value)
 void page_u_map_unset(page_directory_t*pdir, uint32_t vaddr)
 {
     free_page(get_page_from_pdir(pdir,vaddr));
-    invlpg(vaddr);
+    //invlpg(vaddr);
 }
 void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 {
-    alloc_page(get_page_from_pdir(pdir,vaddr),1,1);
+    alloc_page(get_page_from_pdir(pdir,vaddr),0,1);
     //printf("set:0x%x;",vaddr);
-    invlpg(vaddr);
+    //invlpg(vaddr);
 }
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_pdir(pdir,vaddr),1,1,pa);
+    alloc_page_paddr(get_page_from_pdir(pdir,vaddr),0,1,pa);
     //printf("set:0x%x;",vaddr);
-    invlpg(vaddr);
+    //invlpg(vaddr);
 }
 void page_map_unset(uint32_t vaddr)
 {
@@ -124,15 +126,37 @@ void page_map_unset(uint32_t vaddr)
 }
 void page_map_set(uint32_t vaddr)
 {
-    alloc_page(get_page_from_pdir(&kpdir,vaddr),1,1);
+    alloc_page(get_page_from_pdir(&kpdir,vaddr),0,1);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
 }
 void page_map_set_pa(uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),1,1,pa);
+    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),0,1,pa);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
+}
+uint32_t page_kv2p(uint32_t va)
+{
+    page_t *p=get_page_from_pdir(&kpdir,va);
+    if(p)return p->frame*0x1000;
+    return 0;
+}
+page_directory_t *page_clone_cleaned_page()
+{
+    page_directory_t *re=kmalloc_page(4);
+    if(!re)return NULL;
+    re->ptable_dir=(uint32_t)re+4096*3;
+    memcpy(&re->ptable[0],&kpdir.ptable[0],4096);
+    for (int i = 0; i < 1024; i++)
+    {
+        if(kpdir.ptable_dir[i])re->ptable_dir[i]=(uint32_t)re->ptable[i]|0x7;
+    }
+    
+    
+    re->cr0_paddr=page_kv2p(re->ptable_dir);
+    printf("clone a kernel pdt :0x%x -->0x%x;",re->ptable_dir,re->cr0_paddr);
+    return re;
 }
 void init_page()
 {
@@ -172,13 +196,14 @@ void init_page()
 
     for (uint32_t i = 0x00001000; i <kernel_mem_map.video_frambuffer_addr; i+=0x1000)
     {
-        int idx= alloc_page(get_page_from_pdir(&kpdir,i),1,1);
+        int idx= alloc_page(get_page_from_pdir(&kpdir,i),0,1);
     }
     //last map the video buffer
     
     
     //page_map_set(Klogger->frame_buffer);
     printf("map vbuffer:%x\n",Klogger->frame_buffer);
+    kpdir.cr0_paddr=kpdir.ptable_dir;
     switch_page_directory(&kpdir);
     for (int i = 0; i < Klogger->page_cnt; i++)
     {
@@ -187,4 +212,13 @@ void init_page()
     Klogger->frame_buffer=kernel_mem_map.video_frambuffer_addr;
     Klogger->update();
     printf("PAGE OK! 0x100000~0x%x WUHOOOOOOOO!",kernel_mem_map.kfree_paddr_start);
+}
+
+void page_setup_pdt(page_directory_t*p)
+{
+    switch_page_directory(p);
+}
+void page_setup_kernel_pdt()
+{
+    switch_page_directory(&kpdir);
 }

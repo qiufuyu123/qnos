@@ -11,6 +11,7 @@
 #ifndef _H_FS
 #define _H_FS
 #include"types.h"
+#include"mem/malloc.h"
 #include"list.h"
 struct vfs_super_block;
 struct vfs_file;
@@ -21,6 +22,8 @@ struct vfs_dentry;
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
+
+#define O_DRVONLY 0
 #define O_RDONLY 1
 #define O_WRONLY 1<<1
 #define O_RDWR 1<<2
@@ -152,13 +155,14 @@ struct vfs_file
     vfs_file_ops_t *ops;
     uint32_t ref_count;
     uint32_t open_flag;
-    uint32_t onwer_ptr;//record sth about who opened this file
+    uint32_t owner_ptr;//record sth about who opened this file
 };
 typedef struct vfs_file vfs_file_t;
 #define FS_MAX_NUM 4
 #define inode2ptr(inode) elem2entry(vfs_inode_t,inode_ptr,(inode));
 list_t sb_list;
 vfs_super_block_t *root_sb;
+extern slab_unit_t *file_slab;
 vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
 int init_fslist();
 vfs_inode_t* vfs_alloc_inode();
@@ -171,5 +175,5 @@ int sys_open(char *path,uint8_t flag);
 int sys_read(int fd,char *buffer,uint32_t size);
 int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);
-int kread_all(char *path,uint32_t *vaddr);
+int kread_all(char *path,uint32_t *vaddr,int *pgnum);
 #endif

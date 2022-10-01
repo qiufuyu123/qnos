@@ -223,7 +223,7 @@ vfs_file_t *vfs_fopen(char *path,uint8_t flag)
         vfs_file_t*f=vfs_alloc_file;
         if(!f)return 0;
         f->content=d_elem;
-        f->onwer_ptr=0;//TODO
+        f->owner_ptr=get_running_progress();
         f->open_flag=flag;
         f->ops=&file_ops;
         f->ref_count=1;
@@ -316,7 +316,7 @@ int init_fslist()
     
     return 1;
 }
-int kread_all(char *path,uint32_t *vaddr)
+int kread_all(char *path,uint32_t *vaddr,int *pgnum)
 {
     int fd=sys_open(path,O_RDONLY);
     if(fd<0)return fd;
@@ -326,6 +326,7 @@ int kread_all(char *path,uint32_t *vaddr)
     uint32_t pg_num=ngx_align(sz,4096)/4096;
     char *buffer=kmalloc_page(pg_num);
     sys_read(fd,buffer,sz);
+    *pgnum=pg_num;
     //printf("load %d bytes:%s;",sz,buffer);
     *vaddr=buffer;
     return fd;

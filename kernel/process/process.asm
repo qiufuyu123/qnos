@@ -1,3 +1,4 @@
+
 [GLOBAL get_esp]
 get_esp:
 	mov eax,esp
@@ -72,3 +73,27 @@ switch_to:
 	out 0x20,al
 	
 	ret                  ;执行下一个函数
+
+
+
+;global jump_usermode
+test_usercode:
+	cli
+global jump_usermode
+jump_usermode:
+	;push edx
+	;mov edx, [esp+4]
+	mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3
+	mov ds, ax
+	mov es, ax 
+	mov fs, ax 
+	mov gs, ax ; SS is handled by iret
+ 
+	; set up the stack frame iret expects
+	mov eax, esp
+	push (4 * 8) | 3 ; data selector
+	push eax ; current esp
+	pushf ; eflags
+	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
+	push test_usercode ; instruction address to return to
+	iret

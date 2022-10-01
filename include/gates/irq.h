@@ -18,7 +18,7 @@ extern void irq12();
 extern void irq13();
 extern void irq14();
 extern void irq15();
-
+extern void isr128();
 #define IRQ0 32
 #define IRQ1 33
 #define IRQ2 34
@@ -35,6 +35,6 @@ extern void irq15();
 #define IRQ13 45
 #define IRQ14 46
 #define IRQ15 47
-typedef void (*isr_t)(registers_t);
+typedef void (*isr_t)(registers_t*);
 void register_interrupt_handler(uint8_t n, isr_t handler);
 #endif

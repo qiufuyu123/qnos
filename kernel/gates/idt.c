@@ -5,6 +5,7 @@
 #include"io.h"
 #include"mem/page.h"
 #include"string.h"
+#include"process/task.h"
 idt_entry_t idt_entries[256];
 idt_ptr_t idt_ptr;
 isr_t interrupt_handlers[256]={0};
@@ -23,7 +24,7 @@ static void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags
    idt_entries[num].always0 = 0;
    // We must uncomment the OR below when we get to using user-mode.
    // It sets the interrupt gate's privilege level to 3.
-   idt_entries[num].flags   = flags /* | 0x60 */;
+   idt_entries[num].flags   = flags  | 0x60 ;
 }
 void init_idt()
 {
@@ -92,9 +93,9 @@ void init_idt()
     idt_set_gate(45, (uint32_t)irq13, 0x08, 0x8E);
     idt_set_gate(46, (uint32_t)irq14, 0x08, 0x8E);
     idt_set_gate(47, (uint32_t)irq15, 0x08, 0x8E);
-
-    idt_flush((uint32_t)&idt_ptr);
-     memset(&interrupt_handlers, 0, sizeof(isr_t)*256);
+   idt_set_gate(0x80,isr128,0x08,0x8E);
+   idt_flush((uint32_t)&idt_ptr);
+   memset(&interrupt_handlers, 0, sizeof(isr_t)*256);
 
 }   
 void irq_handler(registers_t regs)
@@ -112,8 +113,10 @@ void irq_handler(registers_t regs)
 
    if (interrupt_handlers[regs.int_no] != 0)
    {
-       isr_t handler = interrupt_handlers[regs.int_no];
-       handler(regs);
+      //if(regs.int_no!=32)printf("irq:%d %d %d %d %d",regs.eax,regs.ebx,regs.ecx,regs.edx,regs.edi);
+      isr_t handler = interrupt_handlers[regs.int_no];
+      handler(&regs);
+      //if(regs.int_no!=32)printf("irq ok");
    }
 }
 void isr_handler(registers_t regs)
@@ -134,13 +137,24 @@ void isr_handler(registers_t regs)
    // Output an error message.
       printf("Page fault! ( ");
       if (present) {printf("present ");}
-      if (!rw) {printf("read-only ");}
+      if (rw) {printf("read-only ");}
       if (us) {printf("user-mode ");}
       if (reserved) {printf("reserved ");}
       printf(") at 0x");
       printf("%x",faulting_address);
       printf("\n");
       printf("Page fault[%x]",*get_page_from_pdir(&kpdir,faulting_address));
+   }else if(regs.int_no==128)
+   {
+      isr_t handler = interrupt_handlers[regs.int_no];
+      handler(&regs);
+      return;
    }
-   while(1);
+   
+   printf("HARDWARE INTERRUPT ERROR %d:%s",regs.int_no,get_running_progress()->name);
+   while(1)
+   {
+      asm volatile("hlt");
+   }
+
 }

@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "gdb",
+            "request": "attach",
+            "name": "Attach to gdbserver",
+            "executable": "${workspaceRoot}/kernel/kernel",
+            "gdbpath": "gdb-multiarch",
+            "remote": true,            
+            "target": "127.0.0.1:5800",
+            "cwd": "${workspaceRoot}"
+            }
+        ,
+    ]
+}

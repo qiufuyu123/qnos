@@ -7,6 +7,7 @@ int cx=0,cy=0;
 char bg=0,fg=Vga_White;
 #define VGA_WIDTH 80
 #define VGA_HEITGH 25
+kconsole_t *Klogger;
 void update_cursor(int x, int y)
 {
 	uint16_t pos = y * VGA_WIDTH + x;

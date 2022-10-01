@@ -39,6 +39,15 @@
         "faskmapper.h": "c",
         "symbol.h": "c",
         "elf.h": "c",
-        "kelf.h": "c"
+        "kelf.h": "c",
+        "sysmodule.h": "c",
+        "elfload.h": "c",
+        "kmdk.h": "c",
+        "fastmapper.h": "c",
+        "idt.h": "c",
+        "ascii.h": "c",
+        "keyboard.h": "c",
+        "tss.h": "c",
+        "syscall.h": "c"
     }
 }

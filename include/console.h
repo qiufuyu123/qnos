@@ -46,7 +46,7 @@ enum VgaTextColor
     Vga_Yellow,
     Vga_White  
 };
-kconsole_t *Klogger;
+extern kconsole_t *Klogger;
 void printf(const char *s, ...);
 #define ASSERT(expr,info) if(!(expr)){printf("PANIC:ASSERT ERROR!\nINFO %s\n",info);while(1);}
 #define ASSERT(expr) if(!(expr)){printf("PANIC:ASSERT ERROR!\n");while(1);}
