@@ -181,8 +181,8 @@ int kernelmain(uint32_t magic,uint32_t addr)
     
     asm volatile("sti");//TODO: This code is necessary, but why?
     //while(1);
-    //ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
-    //init_fslist();
+    ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
+    init_fslist();
     
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
@@ -290,7 +290,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //sti();
     init_syscall();
     printf("user adddress:0x%x;",test_user_task);
-    create_user_thread("test_user",test_user_task);
+    create_user_init_thread();
     //jump_usermode();
     //switch_to_user_mode();
     while(1)

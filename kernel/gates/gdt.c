@@ -62,7 +62,20 @@ void init_gdt()
     gdt_flush((uint32_t)&gdt_ptr);
     tss_flush();
 }
-void tss_update(TCB_t* tcb_ptr){
-    tss_entry.esp0 = (uint32_t*)((uint32_t)tcb_ptr+tcb_ptr->page_counte*4096);
+void tss_update(uint32_t stack){
+
+    /**
+     * @brief IMPORTANT NOTICE!!!!
+     * Well, SOME toturial says that we should use this to update tss....
+     *  //tss_entry.esp0 = (uint32_t*)((uint32_t)tcb_ptr+tcb_ptr->page_counte*4096);
+     * But,it should be like this
+     *  //tss_entry.esp0=get_esp();
+     * (I dont want to talk too much about this because i was trapped here for nearly 1 week! f**k)
+     * (Anyway,i think i should thanks to this shit toturial, because of this bug, i learnt how to use gdb to debug)
+     * (At last, after I wrote these code about userland, I can finally get out of the toturial :) )
+     *              --by qiufuyu
+     */
+        
+    tss_entry.esp0=stack;
     //tss_flush();
 }

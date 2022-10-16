@@ -29,6 +29,16 @@ int __fast_travel(list_elem_t *e,int id)
     }
     return 0;
 }
+int __fast_travel__key(list_elem_t *e,int key)
+{
+    karray_t*cur_array=elem2entry(karray_t,next_tag, e);
+    for (int i = cur_array->id_start; i < cur_array->id_end; i++)
+    {
+        
+    }
+    
+    return 0;
+}
 void *fastmapper_get(fastmapper_t*map,uint32_t id)
 {
     if(!map)return 0;
@@ -43,8 +53,13 @@ void *fastmapper_get(fastmapper_t*map,uint32_t id)
 
 void *fastmapper_key_get(fastmapper_t*map,uint32_t key)
 {
-
-
+    // if(!map)return 0;
+    // if(list_empty(&map->karray_list))return 0;
+    // int ret=key;
+    // list_elem_t*r= list_traversal(&map->karray_list,__fast_travel__key,&ret);
+    // if(!r)return 0;
+    // karray_t*cur_array=elem2entry(karray_t,next_tag, r);
+    // return cur_array->elems[id%map->unit_len];
 }
 typedef struct trav_v
 {

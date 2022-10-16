@@ -11,12 +11,17 @@ int syscall_nop(int v1,int v2,int v3,int v4)
 }
 int syscall_interrupt(registers_t*reg)
 {
-    printf("in syscall! 0x%x %d %d %d %d %d",reg,reg->ebx,reg->ecx,reg->edx,reg->edx,reg->edi);
-    //uint32_t syscall_id= reg->eax;
+    
+    //printf("in syscall! 0x%x %d %d %d %d %d",reg,reg->ebx,reg->ecx,reg->edx,reg->edx,reg->edi);
+    uint32_t syscall_id= reg->eax;
     //reg->eax=114;
-    //if(syscall_id>=SYSCALL_NR)return -1;
-    //int (*s_func)(int, int,int,int)=syscall_handles[syscall_id];
-    //return s_func(reg->ebx,reg->ecx,reg->edx,reg->edi); 
+    if(syscall_id>=SYSCALL_NR)
+    {
+        reg->eax=-1;
+        return -1;
+    }
+    int (*s_func)(int, int,int,int)=syscall_handles[syscall_id];
+    reg->eax=s_func(reg->ebx,reg->ecx,reg->edx,reg->edi); 
 }
 void init_syscall()
 {

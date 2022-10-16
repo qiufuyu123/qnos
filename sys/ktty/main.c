@@ -31,19 +31,19 @@ vfs_file_ops_t ttyops={
 };
 vfs_file_t*_get_file(uint32_t owner)
 {
-    vfs_file_t*f=alloc_in_slab_unit(file_slab);
-    if(!f)return NULL;
-    f->ref_count=f->open_flag=0;
-    f->owner_ptr=owner;
-    f->open_flag=O_DRVONLY;
-    f->content=alloc_in_slab_unit(ktty_slab);
-    f->ops=&ttyops;
-    if(!f->content)
-    {
-        kfree(f);
-        return 0;
-    }
-    return f;
+    // vfs_file_t*f=alloc_in_slab_unit(file_slab);
+    // if(!f)return NULL;
+    // f->ref_count=f->open_flag=0;
+    // f->owner_ptr=owner;
+    // f->open_flag=O_DRVONLY;
+    // f->content=alloc_in_slab_unit(ktty_slab);
+    // f->ops=&ttyops;
+    // if(!f->content)
+    // {
+    //     kfree(f);
+    //     return 0;
+    // }
+    //return f;
 
 }
 int kopen(uint32_t val,uint32_t flags)

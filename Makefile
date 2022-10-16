@@ -5,7 +5,7 @@ QEMUOPTS = -kernel build/kernel.elf -m 128M -S  -nographic
 all: sys
 	cd kernel && make -s
 qemu:
-	qemu-system-i386 $(QEMUOPTS) -gdb tcp::5800
+	qemu-system-i386 -kernel ./build/kernel.elf -nographic -s -S
 sys:
 	cd sys && make all
 iso: build/kernel.elf

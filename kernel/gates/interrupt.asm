@@ -19,7 +19,7 @@ gdt_flush:
   [GLOBAL isr%1]        ; %1 accesses the first parameter.
   isr%1:
     cli
-    push byte 0
+    push 0
     push %1
     jmp isr_common_stub
 %endmacro
@@ -145,19 +145,18 @@ isr_common_stub:
 
    call isr_handler
 
-   pop eax        ; reload the original data segment descriptor
-   mov ds, ax
-   mov es, ax
-   mov fs, ax
-   mov gs, ax
+   pop ebx        ; reload the original data segment descriptor
+   mov ds, bx
+   mov es, bx
+   mov fs, bx
+   mov gs, bx
 
    popa                     ; Pops edi,esi,ebp...
    add esp, 8     ; Cleans up the pushed error code and pushed ISR number
    sti
    iret           ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
-
-
-   [GLOBAL tss_flush]    ; Allows our C code to call tss_flush().
+   
+[GLOBAL tss_flush]    ; Allows our C code to call tss_flush().
 tss_flush:
    mov ax, 0x2B      ; Load the index of our TSS structure - The index is
                      ; 0x28, as it is the 5th selector and each is 8 bytes
@@ -173,7 +172,7 @@ exit_int:
   mov esp,eax       ;修改栈位置
   ;以下部分是模拟中断中的执行返回(见interrupt_asm.s)
 
-     pop eax        ; reload the original data segment descriptor
+   pop eax        ; reload the original data segment descriptor
    mov ds, ax
    mov es, ax
    mov fs, ax

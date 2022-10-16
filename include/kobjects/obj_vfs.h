@@ -56,12 +56,28 @@ typedef struct vfs_dir_elem
     //uint8_t name_len;
     //uint8_t type_tag;
     inode_handle file;
-    union
-    {
-        struct vfs_dentry *d_dir;
-        struct vfs_file *d_file;
-    };
-    
+
+    /**
+     * @brief NOTICE
+     * Remember, we dont need a double-direction pointer
+     * It means that only fd(file descriptions) know the elem but
+     * elem doesnt no any fd which is related to him
+     * It just knows how many fds are related to it
+     * Simply notice that...
+     */
+    struct vfs_dentry *d_dir;
+    // union
+    // {
+    //     struct vfs_dentry *d_dir;
+    //     struct vfs_file *d_file;
+    // };
+    int ref_counter;
+    /**
+     * @brief REF_COUNTER
+     * This is a counter used to record how many file descriptions are
+     * related to this elem
+     * This is used in the release process 
+     */
     list_elem_t list_tag;
 }vfs_dir_elem_t;
 typedef struct vfs_dentry_ops
@@ -153,7 +169,7 @@ struct vfs_file
 {
     vfs_dir_elem_t *content;
     vfs_file_ops_t *ops;
-    uint32_t ref_count;
+    uint32_t lseek;
     uint32_t open_flag;
     uint32_t owner_ptr;//record sth about who opened this file
 };

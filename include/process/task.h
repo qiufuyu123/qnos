@@ -67,7 +67,8 @@ struct TCB_t{
 	uint8_t fork_mark;
 	struct TCB_t *parent_thread;
 	list_t child_thread_list;
-	fastmapper_t fd_list;
+	//fastmapper_t fd_list;
+	uint32_t *fd_list;
 } TCB_t;
 
 typedef void * thread_function(void * args);       //定义线程的实际执行函数类型
@@ -87,7 +88,7 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 TCB_t* create_kern_thread(char *name,thread_function *func,void *args);
 
 void threads_init();    //线程模块初始化 需要把主线程加入运行表中
-TCB_t *create_user_thread(char *name,void *args);
+TCB_t *create_user_init_thread();
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte);
 
 TCB_t* get_running_progress();

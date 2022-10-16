@@ -35,5 +35,5 @@ struct tss_entry_struct
 } __attribute__((packed));
 
 typedef struct tss_entry_struct tss_entry_t;
-void tss_update(TCB_t* tcb_ptr);
+void tss_update(uint32_t stack);
 #endif

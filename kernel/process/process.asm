@@ -59,13 +59,13 @@ switch_to:
 	mov edx,[eax+12]
 	mov esi,[eax+16]
 	mov edi,[eax+20]
-	push ebx
-	mov ebx,[eax+24]
+	;push ebx
+	;mov ebx,[eax+24]
 	add eax,28
 	push dword [eax] ;eflags
 	popf
-	mov eax,ebx	
-	pop ebx
+	;mov eax,ebx	
+	;pop ebx
 	;由于8259a设置的手动模式 所以必须给主片与从片发送信号 否则8259a会暂停
 	;这个bug找了一下午才找到 顺便吐槽下 内核级的代码debug太难了(GDB在多线程与汇编级会失效 只有print调试法) 
 	mov al,0x20         
@@ -97,3 +97,22 @@ jump_usermode:
 	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
 	push test_usercode ; instruction address to return to
 	iret
+
+global syscall_test
+syscall_test:
+	;push ebx
+	;push ecx
+	;push edx
+	;push edi
+	;mov ebx,1
+	;mov ecx,2
+	;mov edx,3
+	;mov edi,4
+	int 0x80
+
+	;pop edi
+	;pop edx
+	;pop ecx
+	;pop ebx
+	leave
+	ret

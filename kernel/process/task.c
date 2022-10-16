@@ -11,6 +11,7 @@
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
+uint32_t main_esp;
 TCB_t main_TCB;    //内核主线程TCB
 TCB_t* cur_tcb;
 bitmap_t kpid_map;
@@ -46,7 +47,8 @@ static void  _init_main_thread(TCB_t * main_tcb){
 	TCB_t *tcb_buffer_addr = main_tcb;
 	tcb_buffer_addr->tid = thread_get_pid();        //主线程的编号为0 
 	fastmapper_add(&pid_mapper,main_tcb,0); 
-	fastmapper_init(&tcb_buffer_addr->fd_list,20);
+	//fastmapper_init(&tcb_buffer_addr->fd_list,20);
+	tcb_buffer_addr->fd_list=kmalloc(4*20);
 	tcb_buffer_addr->time_counter=0;
 	tcb_buffer_addr->time_left=TIME_CONT;
 	tcb_buffer_addr->task_status = TASK_RUNNING;
@@ -78,13 +80,24 @@ void threads_init(){
 	TCB_t *tcb_buffer_addr = &main_TCB;
 	_init_main_thread(&main_TCB);
 	cur_tcb = &main_TCB;
+	main_esp=kmalloc_page(4);
+	tss_update(main_esp+4*4096);
+	// for (int i = 0; i < 4; i++)
+	// {
+	// 	page_t *p=get_page_from_pdir(&kpdir,main_esp+i*4096);
+	// 	p->user=1;
+	// }
+	// page_setup_kernel_pdt();
+	
 }
 
 //用于创建线程的PCB
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
 	TCB_t * tcb_buffer_addr = (TCB_t*)page_addr;
 	tcb_buffer_addr->tid = tid; 
-	fastmapper_init(&tcb_buffer_addr->fd_list,20);
+	//fastmapper_init(&tcb_buffer_addr->fd_list,20);
+	tcb_buffer_addr->fd_list=kmalloc(4*20);
+	if(!tcb_buffer_addr->fd_list)return 0;
 	fastmapper_add(&pid_mapper,tcb_buffer_addr,tid);        
 	tcb_buffer_addr->time_counter=0;
 	tcb_buffer_addr->time_left=TIME_CONT;
@@ -103,6 +116,7 @@ TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
 void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint32_t addr,uint32_t page_counte,bool is_kern_thread,uint32_t pdt_vaddr,TCB_t *parent){	
 	asm volatile("cli");  //由于创建过程会使用到共享的数据 不使用锁的话会造成临界区错误 所以我们在此处关闭中断
 	TCB_t * new_tcb = create_TCB(tid,addr,page_counte);
+	//sizeof(TCB_t);
 	TCB_t * temp_next = cur_tcb->next;
 	cur_tcb->next = new_tcb;
 	new_tcb->next = temp_next;
@@ -112,12 +126,15 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 		//new_tcb->user_vmm_pool = user_vmm_pool;
 		//new_tcb->pdt_vaddr = pdt_vaddr;
 	}
+	new_tcb->context.ebp=new_tcb->kern_stack_top;
 	*(--new_tcb->kern_stack_top)=args;     //压入初始化的参数与线程执行函数
 	*(--new_tcb->kern_stack_top)=exit;
 	*(--new_tcb->kern_stack_top)=func;
 	//此处存在修改！    0x200 ------->0x202    IF为1（打开硬中断）   IOPL为0（只允许内核访问IO）   1号位为1（eflags格式默认）
 	new_tcb->context.eflags = 0x202; 
+	//new_tcb->context.ebp=new_tcb->page_addr+new_tcb->page_counte*4096;
 	new_tcb->context.esp =new_tcb->kern_stack_top;
+	//new_tcb->context.ebp=new_tcb->context.esp;
 	new_tcb->parent_thread=parent;
 	new_tcb->name=strdup(name);
 	asm volatile("sti");	
@@ -125,32 +142,33 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 void switch_to_user_mode() {
 			    // Set up a stack structure for switching to user mode.	
 	//cli();
-	printf("before tss");
-	tss_update(get_running_progress());
-	printf("after tss");
-   asm volatile("  \
-      cli; \
-      mov $0x23, %ax; \
-      mov %ax, %ds; \
-      mov %ax, %es; \
-      mov %ax, %fs; \
-      mov %ax, %gs; \
-                    \
-       \
-      mov %esp, %eax; \
-      pushl $0x23; \
-      pushl %esp; \
-      pushf; \
-	  pop %eax; \
-	  mov $0x202,%eax;\
-	  push %eax;\
-      pushl $0x1B; \
-      push $1f; \
-      iret; \
-    1: \
-      "); 
+// 	printf("before tss");
+ 	tss_update(get_running_progress());
+// 	printf("after tss");
+//    asm volatile("  \
+//       cli; \
+//       mov $0x23, %ax; \
+//       mov %ax, %ds; \
+//       mov %ax, %es; \
+//       mov %ax, %fs; \
+//       mov %ax, %gs; \
+//                     \
+//        \
+//       mov %esp, %eax; \
+//       pushl $0x23; \
+//       pushl %esp; \
+//       pushf; \
+// 	  pop %eax; \
+// 	  mov $0x202,%eax;\
+// 	  push %eax;\
+//       pushl $0x1B; \
+//       push $1f; \
+//       iret; \
+//     1: \
+//       "); 
+                                                                                                              
 
-			}
+}
 /**
  * @brief NOTICE 
  *  
@@ -228,19 +246,29 @@ int kernel_fork()
 
 int _user_task_func(void *args)
 {
-	// int (*func)()=args;
-	// printf("func address:0x%x",func);
-	// uint8_t *ptr=0x80000000;
-	// *ptr=123;
-	// printf("test user pdt:%d",*ptr);
-	// int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
-	// printf("fd is %d;",fd);
-	// sys_read(fd,ptr,4096);
-	// func=ptr;
-	switch_to_user_mode();
-	__base_syscall(0,1,2,3,4);
+	int (*func)()=args;
+	
+	uint8_t *ptr=0x80000000;
+	//*ptr=123;
+	//printf("test user pdt:%d",*ptr);
+	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
+	//printf("fd is %d;",fd);
+	sys_read(fd,ptr,4096);
+	func=ptr;
+	printf("func address:0x%x",func);
+	//kerneltest();
+	//switch_to_user_mode();
+	
+	
+	//tss_update(get_running_progress());
+	//__base_syscall(0,1,2,3,4);
+	//asm volatile("int $0x80");
+	//kerneltest();
+
+
+	//syscall_test();
 	//printf("get ret:%d;",func());
-	while(1);
+	//while(1);
 	//while (1);
 	// {
 	// 	/* code */
@@ -251,15 +279,34 @@ int _user_task_func(void *args)
 	while(1);
 	//thread_function *func=args; 114;
 }
-TCB_t *create_user_thread(char *name,void *args)
+TCB_t *create_user_init_thread()
 {
 	cli();
-	TCB_t *new_tcb=create_kern_thread(name,_user_task_func,args);
+	TCB_t *new_tcb=create_kern_thread("init",_user_task_func,0);
 	
 	new_tcb->is_kern_thread=0;
 	//new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
 	page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
+	new_tcb->kern_stack_top=0xFFFFe000;
+	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
+	page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
+	new_tcb->context.ebp=new_tcb->kern_stack_top;
+	/**
+	 * @brief NOTICE
+	 * In order to setup stack for user program
+	 * We switch to its pdt and set the stack
+	 * then , we switch back to kernel 
+	 */
+	page_setup_pdt(new_tcb->pdt_vaddr);
+	*(--new_tcb->kern_stack_top)=0;
+	*(--new_tcb->kern_stack_top)=exit;
+	*(--new_tcb->kern_stack_top)=_user_task_func;
+	new_tcb->context.esp=new_tcb->kern_stack_top;
+	page_setup_kernel_pdt();
+	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
+	//p->user=1;
+	
 	sti();
 	return new_tcb;
 }
@@ -292,12 +339,22 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 }
 int thread_add_fd(vfs_file_t* file)
 {
-	return fastmapper_add_auto(&get_running_progress()->fd_list,file);
+	for (int i = 0; i < 20; i++)
+	{
+		if(get_running_progress()->fd_list[i]==0)
+		{
+			get_running_progress()->fd_list[i]=file;
+			return i;
+		}
+	}
+	return -1;
+	//return fastmapper_add_auto(&get_running_progress()->fd_list,file);
 }
 
 vfs_file_t* thread_get_fd(int id)
 {
-	return fastmapper_get(&get_running_progress()->fd_list,id);
+	if(id<0||id>=20)return 0;
+	return get_running_progress()->fd_list[id];
 }
 int schedule(){
     //check if the thread module is available
@@ -358,8 +415,9 @@ int schedule(){
 	//active_task(cur_tcb);
 	//printf("switch:%x-%x %d-%d;",now,next_tcb,now->tid,next_tcb->tid);
 	//printf("--->esp:%d eax:%d ebp:%d---><---esp:%d eax:%d ebp:%d\n",now->context.esp,now->context.eax,now->context.ebp,next_tcb->context.esp,next_tcb->context.eax,next_tcb->context.ebp);
-	get_esp();
+	//main_esp=get_esp();
 	active_task(next_tcb);
+	//tss_update(get_esp());
 	switch_to(&(now->context),&(next_tcb->context));  
 	    
 }

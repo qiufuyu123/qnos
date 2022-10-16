@@ -126,13 +126,13 @@ void page_map_unset(uint32_t vaddr)
 }
 void page_map_set(uint32_t vaddr)
 {
-    alloc_page(get_page_from_pdir(&kpdir,vaddr),0,1);
+    alloc_page(get_page_from_pdir(&kpdir,vaddr),1,0);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
 }
 void page_map_set_pa(uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),0,1,pa);
+    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),1,0,pa);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
 }
@@ -196,7 +196,7 @@ void init_page()
 
     for (uint32_t i = 0x00001000; i <kernel_mem_map.video_frambuffer_addr; i+=0x1000)
     {
-        int idx= alloc_page(get_page_from_pdir(&kpdir,i),0,1);
+        int idx= alloc_page(get_page_from_pdir(&kpdir,i),1,0);
     }
     //last map the video buffer
     
