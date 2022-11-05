@@ -16,6 +16,8 @@ TCB_t main_TCB;    //内核主线程TCB
 TCB_t* cur_tcb;
 bitmap_t kpid_map;
 fastmapper_t pid_mapper;
+list_t dead_thread_list;
+int clean_up_dead(TCB_t* tmp);
 TCB_t* get_running_progress(){
 	return cur_tcb;
 }
@@ -81,7 +83,9 @@ void threads_init(){
 	_init_main_thread(&main_TCB);
 	cur_tcb = &main_TCB;
 	main_esp=kmalloc_page(4);
-	tss_update(main_esp+4*4096);
+	//tss_update(main_esp+4*4096);
+
+	list_init(&dead_thread_list);
 	// for (int i = 0; i < 4; i++)
 	// {
 	// 	page_t *p=get_page_from_pdir(&kpdir,main_esp+i*4096);
@@ -128,7 +132,7 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 	}
 	new_tcb->context.ebp=new_tcb->kern_stack_top;
 	*(--new_tcb->kern_stack_top)=args;     //压入初始化的参数与线程执行函数
-	*(--new_tcb->kern_stack_top)=exit;
+	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=func;
 	//此处存在修改！    0x200 ------->0x202    IF为1（打开硬中断）   IOPL为0（只允许内核访问IO）   1号位为1（eflags格式默认）
 	new_tcb->context.eflags = 0x202; 
@@ -143,29 +147,29 @@ void switch_to_user_mode() {
 			    // Set up a stack structure for switching to user mode.	
 	//cli();
 // 	printf("before tss");
- 	tss_update(get_running_progress());
-// 	printf("after tss");
-//    asm volatile("  \
-//       cli; \
-//       mov $0x23, %ax; \
-//       mov %ax, %ds; \
-//       mov %ax, %es; \
-//       mov %ax, %fs; \
-//       mov %ax, %gs; \
-//                     \
-//        \
-//       mov %esp, %eax; \
-//       pushl $0x23; \
-//       pushl %esp; \
-//       pushf; \
-// 	  pop %eax; \
-// 	  mov $0x202,%eax;\
-// 	  push %eax;\
-//       pushl $0x1B; \
-//       push $1f; \
-//       iret; \
-//     1: \
-//       "); 
+ 	tss_update(get_running_progress()->kern_user2kern_stack_top+4096);
+	printf("after tss");
+   asm volatile("  \
+      cli; \
+      mov $0x23, %ax; \
+      mov %ax, %ds; \
+      mov %ax, %es; \
+      mov %ax, %fs; \
+      mov %ax, %gs; \
+                    \
+       \
+      mov %esp, %eax; \
+      pushl $0x23; \
+      pushl %esp; \
+      pushf; \
+	  pop %eax; \
+	  mov $0x202,%eax;\
+	  push %eax;\
+      pushl $0x1B; \
+      push $1f; \
+      iret; \
+    1: \
+      "); 
                                                                                                               
 
 }
@@ -246,6 +250,12 @@ int kernel_fork()
 
 int _user_task_func(void *args)
 {
+	printf("before switch!");
+	// switch_to_user_mode();
+	// __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
+	// __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
+	// __base_syscall(SYSCALL_EXIT,0,0,0,0);
+	// while(1);
 	int (*func)()=args;
 	
 	uint8_t *ptr=0x80000000;
@@ -253,7 +263,7 @@ int _user_task_func(void *args)
 	//printf("test user pdt:%d",*ptr);
 	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
 	//printf("fd is %d;",fd);
-	sys_read(fd,ptr,4096);
+	sys_read(fd,ptr,4096*2);
 	func=ptr;
 	printf("func address:0x%x",func);
 	//kerneltest();
@@ -279,15 +289,26 @@ int _user_task_func(void *args)
 	while(1);
 	//thread_function *func=args; 114;
 }
+void remove_tcb(TCB_t *tcb)
+{
+	kfree(tcb->fd_list);
+	
+}
 TCB_t *create_user_init_thread()
 {
 	cli();
-	TCB_t *new_tcb=create_kern_thread("init",_user_task_func,0);
-	
+	TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
+	new_tcb->kern_user2kern_stack_top=kmalloc_page(1);
+	if(!new_tcb->kern_user2kern_stack_top)
+	{
+		clean_up_dead(new_tcb);
+		return NULL;
+	}
 	new_tcb->is_kern_thread=0;
 	//new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
 	page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
+	page_u_map_set(new_tcb->pdt_vaddr,0x80001000);//well 8kb is enough for our test!
 	new_tcb->kern_stack_top=0xFFFFe000;
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
@@ -300,7 +321,7 @@ TCB_t *create_user_init_thread()
 	 */
 	page_setup_pdt(new_tcb->pdt_vaddr);
 	*(--new_tcb->kern_stack_top)=0;
-	*(--new_tcb->kern_stack_top)=exit;
+	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
 	page_setup_kernel_pdt();
@@ -356,6 +377,17 @@ vfs_file_t* thread_get_fd(int id)
 	if(id<0||id>=20)return 0;
 	return get_running_progress()->fd_list[id];
 }
+int clean_up_dead(TCB_t* tmp)
+{
+	//TCB_t*tmp= elem2entry(TCB_t,dead_tag,elem);
+	//list_remove(&tmp->dead_tag);
+	thread_release_pid(tmp->tid);
+	kfree(tmp->fd_list);
+	//if(!tmp->is_kern_thread) page_free_pdt(tmp->pdt_vaddr);
+	printf("[clean up thread:%d]",tmp->tid);
+	kfree_page(tmp,1);
+	return 0;
+}
 int schedule(){
     //check if the thread module is available
     if(get_running_progress()==NULL){
@@ -370,6 +402,7 @@ int schedule(){
 
 	//find next thread
     TCB_t * probe = cur_tcb;
+	//list_traversal(&dead_thread_list,__travel_dead_list,0);
     while(1){
         probe = probe->next;
         if(probe==cur_tcb){
@@ -393,6 +426,8 @@ int schedule(){
             }
 			else if(probe->task_status==TASK_DIED)
 			{
+				//remove_thread(probe);
+				//clean_up_dead(probe);
 				//TODO: CLEAN UP THE DIE THREAD
 				continue;
 			}
@@ -454,28 +489,44 @@ void thread_wakeup(TCB_t * target_thread){
     sti();
 }
 
-void remove_thread(){
+void remove_thread(TCB_t* tmp){
 	cli();
-	if(cur_tcb->tid==0)
+	if(tmp->tid==0)
 		printf("ERRO:main thread can`t use function exit\n");
 	else{
-		TCB_t *temp = cur_tcb;
-		for(;temp->next!=cur_tcb;temp=temp->next)
+		TCB_t *temp = tmp;
+		for(;temp->next!=tmp;temp=temp->next)
 			;
-		temp->next = cur_tcb->next;
+		temp->next = tmp->next;
 	}
 }
 
+void __freeing_mem_thread(TCB_t*now)
+{
+	//TCB_t *now=get_running_progress();
+	//1.close fd_list
+	//TODO
+	kfree(now->fd_list);
+	//2. freeing mapped memory
+	if(!now->is_kern_thread)page_free_pdt(now->pdt_vaddr);
+	
+}
 
-//本exit函数暂时只能被内核线程使用 作为自动退出
-void exit(){
-	remove_thread();
+void user_exit(){
+	// cli();
+	// printf("in thread exit!");
+	// get_running_progress()->task_status=TASK_DIED;
+	// sti();
+	remove_thread(get_running_progress());
+	//__freeing_mem_thread();
 	TCB_t *now = cur_tcb;
 	TCB_t *next_tcb = cur_tcb->next;
 	next_tcb->time_left = TIME_CONT;
 	cur_tcb = cur_tcb->next;
 	printf("thread:%d exit with code:%d;",now->tid,now->context.eax);
+	//list_append(&dead_thread_list,&now->dead_tag);
 	switch_to(&(now->context),&(next_tcb->context));
+	//get_running_progress()->task_status=TASK_DIED;
 	//注意 暂时没有回收此线程页
 }
 

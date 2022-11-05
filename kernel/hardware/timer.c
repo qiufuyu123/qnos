@@ -4,7 +4,7 @@
 #include"io.h"
 #include"process/task.h"
 //execute n times per 1 second
-#define T_UNIT 1000
+#define T_UNIT 20000
 uint32_t ticks=0;
 static void timer_callback(registers_t regs)
 {

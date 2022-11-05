@@ -45,8 +45,10 @@ struct context_t{       //存放在内核栈中的任务上下文
 typedef
 struct TCB_t{
 	uint32_t * kern_stack_top;    //对应的内核栈顶地址
+	uint32_t *kern_user2kern_stack_top;
 	task_status_t task_status;  
 	list_elem_t lock_tag;
+	list_elem_t dead_tag;
 	list_elem_t child_tag;
 	uint32_t time_counter;      //记录运行总的时钟中断数
 	uint32_t time_left;         //剩余时间片
@@ -105,5 +107,5 @@ void thread_die(TCB_t*target_thread);
 
 vfs_file_t* thread_get_fd(int id);
 void active_task(TCB_t *task);
-void exit();     //线程结束函数 关闭中断->移出执行链表->回收内存空间->开启中断
+void user_exit();     //线程结束函数 关闭中断->移出执行链表->回收内存空间->开启中断
 #endif

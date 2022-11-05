@@ -48,4 +48,5 @@ void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value);
 void page_u_map_set(page_directory_t*pdir,uint32_t vaddr);
 void page_setup_pdt(page_directory_t*p);
 void page_setup_kernel_pdt();
+void page_free_pdt(page_directory_t *p);
 #endif

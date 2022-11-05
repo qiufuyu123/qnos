@@ -1,4 +1,7 @@
-#include"process/syscall.h"
+//#include"process/syscall.h"
+#include"stdio.h"
+#include"usyscall.h"
+#include"stdlib.h"
 int main()
 {
     __asm__ ("movl %%esp,%%eax\n\t" \
@@ -15,11 +18,18 @@ int main()
     "movw %%ax,%%gs" \
     :::"ax");
     int a;
-    asm volatile("int $0x80" : "=a" (a) : "0" (0), "b" ((int)4));
-    while (1)
-    {
-        /* code */
-    }
+    //asm volatile("int $0x80" : "=a" (a) : "a" (2), "b" ((int)4));
+    char buf[20];
+    printf("hello printf![%d]",233);
+    printf("hello printf![%d]",332);
+    exit(1);
+    while(1);
+    
+    //printf(buf);
+    // while (1)
+    // {
+    //     /* code */
+    // }
     
     return 989;
 }

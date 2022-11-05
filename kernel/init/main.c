@@ -26,7 +26,9 @@
 #include"utils/circlequeue.h"
 #include"sysmodule.h"
 #include"process/syscall.h"
+#include"kobjects/obj_serial.h"
 #define VIDEO 0xB8000
+#define __DEBUG_FILE_SYSTEM 0
 lock_t test_lock;
 sysmodule_t*t_m;
 extern uint32_t kstart,kend;
@@ -45,7 +47,17 @@ void test_t1(void *args)
     {
         printf("1");
     }*/
-    
+    #ifdef __DEBUG_FILE_SYSTEM
+    int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
+    if(fd<0)
+    {
+        printf("t1 open fail!\n");
+        while(1);
+    }
+    char buf[3];
+    sys_read(fd,buf,3);
+    printf("t1:read 3 bytes from 0:%s",buf);
+    #endif
     // //while(1)printf("taskA!;");
     // printf("acquiring lock...(T1);");
     // lock_acquire(&test_lock);
@@ -55,13 +67,13 @@ void test_t1(void *args)
     // printf("ready to release!;");
     // lock_release(&test_lock);
     // printf("release the lock!(T1);");
-    printf("T1 ready...;");
-    lock_acquire(&test_lock);
-    printf("T1 get lock!;");
+    // printf("T1 ready...;");
+    // lock_acquire(&test_lock);
+    // printf("T1 get lock!;");
     
-    lock_release(&test_lock);
-    printf("T1 release lock!;");
-    printf("[%s];",get_running_progress()->name);
+    // lock_release(&test_lock);
+    // printf("T1 release lock!;");
+    // printf("[%s];",get_running_progress()->name);
     while (1)
     {
         uint8_t c= keyboard_get_key();
@@ -72,6 +84,18 @@ void test_t1(void *args)
 }
 void test_t2(void *args)
 {
+    #ifdef __DEBUG_FILE_SYSTEM
+    int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
+    if(fd<0)
+    {
+        printf("t2 open fail!\n");
+        while(1);
+    }
+    char buf[3];
+    sys_lseek(fd,3,SEEK_SET);
+    sys_read(fd,buf,3);
+    printf("t2:read 3 bytes from 3:%s",buf);
+    #endif
     //     printf("acquiring lock...(T2);");
     // lock_acquire(&test_lock);
     // //get_tick();
@@ -140,7 +164,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     mbi=(multiboot_info_t*)addr;
     init_gdt();
     init_idt();
-    
+    init_serial();
     *((uint8_t*)VIDEO)='d';
     //Klogger.putstr("hello log!\n");
     init_vga(mbi);
@@ -158,9 +182,6 @@ int kernelmain(uint32_t magic,uint32_t addr)
     init_vmm();
     init_timer();
     
-    
-
-    
     /*uint32_t *t=kmalloc_page(1);
     *t=114514;
     printf("%d %x\n",*t,t);
@@ -172,18 +193,20 @@ int kernelmain(uint32_t magic,uint32_t addr)
     keyboard_init();
     //clock_init();
     lock_init(&test_lock);
-    asm volatile("cli");//TODO: This code is necessary, but why?
-    create_kern_thread("1",&test_t1,0);
-    create_kern_thread("2",&test_t2,0);
+    //asm volatile("cli");//TODO: This code is necessary, but why?
+    
     //create_thread(1,&test_t1,0,kmalloc_page(1),1,1,0);
     //create_thread(2,&test_t2,0,kmalloc_page(1),1,1,0);
     //init_ide();
-    
+    printf("stage 1!");
     asm volatile("sti");//TODO: This code is necessary, but why?
     //while(1);
+    #ifdef __DEBUG_FILE_SYSTEM
     ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
     init_fslist();
-    
+    #endif
+    //create_kern_thread("1",&test_t1,0);
+    //create_kern_thread("2",&test_t2,0);
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
     //printf("buf is %x\n",buf);
@@ -208,9 +231,10 @@ int kernelmain(uint32_t magic,uint32_t addr)
     fastmapper_init(&test_map,10);
     fastmapper_add(&test_map,114514,5);
     fastmapper_add(&test_map,1919810,12);
+    printf("stage 2!");
     printf("[get %d %d!];\n",fastmapper_get(&test_map,5),fastmapper_get(&test_map,12));
-    TCB_t*ttt=get_tcb(2);
-    printf("task : pid:%d name:%d kaddr:0x%x\n",ttt->tid,ttt->name,ttt->page_addr);
+    //TCB_t*ttt=get_tcb(2);
+    //printf("task : pid:%d name:%d kaddr:0x%x\n",ttt->tid,ttt->name,ttt->page_addr);
     printf("MEM INFO:[%d/%d]\n",pmm_get_used(),kernel_mem_map.total_mem_in_kb);
     //vfs_file_t*f= vfs_fopen("/boot/setup.ini",O_RDWR);
     // int fd=sys_open("/boot/setup.ini",O_RDONLY);
@@ -288,6 +312,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //     //}
     // }
     //sti();
+
     init_syscall();
     printf("user adddress:0x%x;",test_user_task);
     create_user_init_thread();

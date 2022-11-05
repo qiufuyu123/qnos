@@ -163,7 +163,7 @@ typedef struct vfs_file_ops
     int (*write)(struct vfs_file*file,uint32_t size,uint8_t *buffer);
     int (*lseek)(struct vfs_file*file,uint32_t offset,uint8_t base);
     int (*tell)(struct vfs_file*file);
-    
+    int (*close)(struct vfs_file *file);
 }vfs_file_ops_t;
 struct vfs_file
 {
@@ -191,5 +191,6 @@ int sys_open(char *path,uint8_t flag);
 int sys_read(int fd,char *buffer,uint32_t size);
 int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);
+int sys_close(int fd);
 int kread_all(char *path,uint32_t *vaddr,int *pgnum);
 #endif

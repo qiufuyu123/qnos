@@ -21,6 +21,7 @@ void active_task(TCB_t *task)
              PANIC("NO PDT IN USER TASK!");
         }
         page_setup_pdt(pd);
+        tss_update(task->kern_user2kern_stack_top+4096);
         //printf("switch user:%s;",task->name);
         
     }

@@ -5,6 +5,9 @@
 #include"string.h"
 #include"mem/malloc.h"
 page_directory_t kpdir;
+#define __DEBUG_MODE 0,1
+#define __NON_DEBUG_MODE 1,0
+#define DEBUG_KERNEL_NUM __DEBUG_MODE
 static inline void invlpg(void* m)
 {
     /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */
@@ -126,13 +129,13 @@ void page_map_unset(uint32_t vaddr)
 }
 void page_map_set(uint32_t vaddr)
 {
-    alloc_page(get_page_from_pdir(&kpdir,vaddr),1,0);
+    alloc_page(get_page_from_pdir(&kpdir,vaddr),DEBUG_KERNEL_NUM);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
 }
 void page_map_set_pa(uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),1,0,pa);
+    alloc_page_paddr(get_page_from_pdir(&kpdir,vaddr),DEBUG_KERNEL_NUM,pa);
     //printf("set:0x%x;",vaddr);
     invlpg(vaddr);
 }
@@ -174,8 +177,7 @@ void init_page()
     printf("kfree_paddr:0x%x bitmap:0x%x pdir:0x%x kpde:0x%x\n",kernel_mem_map.kfree_paddr_start,kernel_mem_map.phy_bitmap_addr,kernel_mem_map.kpage_dir_phy_addr,kernel_mem_map.kpde_phy_addr);
     //while(1);
     kpdir.ptable_dir=kernel_mem_map.kpde_phy_addr;//IMPORTANT!
-
-
+    
     /**
      * @brief IMPORTANT MARK OF PAGING
      * 
@@ -196,7 +198,7 @@ void init_page()
 
     for (uint32_t i = 0x00001000; i <kernel_mem_map.video_frambuffer_addr; i+=0x1000)
     {
-        int idx= alloc_page(get_page_from_pdir(&kpdir,i),1,0);
+        int idx= alloc_page(get_page_from_pdir(&kpdir,i),DEBUG_KERNEL_NUM);
     }
     //last map the video buffer
     
@@ -213,7 +215,14 @@ void init_page()
     Klogger->update();
     printf("PAGE OK! 0x100000~0x%x WUHOOOOOOOO!",kernel_mem_map.kfree_paddr_start);
 }
-
+void page_free_pdt(page_directory_t *p)
+{
+    for (int i = 0; i < 1024*3; i++)
+    {
+        free_page(p->ptable[i]->pages);
+    }
+    
+}
 void page_setup_pdt(page_directory_t*p)
 {
     switch_page_directory(p);

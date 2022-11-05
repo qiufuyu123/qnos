@@ -7,6 +7,7 @@
 #include "string.h"
 #include "process/task.h"
 #include "process/sync.h"
+#include "string.h"
 //#define __check_open_flag(flag,need_flag) (flag)&(need_flag)
 lock_t fs_lock;
 #define IN_LOCK lock_acquire(&fs_lock);
@@ -123,7 +124,7 @@ vfs_dir_elem_t *__search_file_elem(char *path)
     uint8_t root_check = __travel_path(path, &t_cnt, len);
     if (root_check != __CHAR_ROOT)
     {
-        printf("Cant locate '/' in the path;");
+        printf("Cant locate '/' in the path;%s",path);
         return 0;
     }
     char *sub_path;
@@ -196,9 +197,9 @@ int vfs_fread(vfs_file_t *file, uint32_t size, uint32_t buffer)
         vfs_inode_t *inode = inode2ptr(file->content->file);
         if (inode->magic_num != INODE_MAGIC_NUM)
             return VFS_FORMAT_ERR;
-        //inode->seek_offset=file->lseek;
+        inode->seek_offset=file->lseek;
         int r= inode->i_ops->fs_read(&inode->inode_ptr, size, buffer, 0);
-        //file->lseek=inode->seek_offset;
+        file->lseek=inode->seek_offset;
         return r;
     }
     return VFS_PREMISSION_ERR;
@@ -210,9 +211,9 @@ int vfs_fwrite(vfs_file_t *file, uint32_t size, uint32_t buffer)
         vfs_inode_t *inode = inode2ptr(file->content->file);
         if (inode->magic_num != INODE_MAGIC_NUM)
             return VFS_FORMAT_ERR;
-        //inode->seek_offset=file->lseek;
+        inode->seek_offset=file->lseek;
         int r= inode->i_ops->fs_write(&inode->inode_ptr, size, buffer, 0);
-        //file->lseek=inode->seek_offset;
+        file->lseek=inode->seek_offset;
         return r;
     }
     return VFS_PREMISSION_ERR;
@@ -230,16 +231,24 @@ int vfs_lseek(vfs_file_t *file, uint32_t offset, uint32_t source)
     vfs_inode_t *inode = inode2ptr(file->content->file);
     if (inode->magic_num != INODE_MAGIC_NUM)
         return VFS_FORMAT_ERR;
-    //inode->seek_offset=file->lseek;
+    inode->seek_offset=file->lseek;
     inode->i_ops->fs_lseek(&inode->inode_ptr, source, offset);
-    //file->lseek=inode->seek_offset;
+    file->lseek=inode->seek_offset;
     return 0;
+}
+int vfs_close(vfs_file_t *file)
+{
+    vfs_inode_t *inode = inode2ptr(file->content->file);
+    if (inode->magic_num != INODE_MAGIC_NUM)
+        return VFS_FORMAT_ERR;
+    
 }
 vfs_file_ops_t file_ops = {
     .read = vfs_fread,
     .tell = vfs_tell,
     .lseek = vfs_lseek,
-    .write = vfs_fwrite
+    .write = vfs_fwrite,
+    
     };
 vfs_file_t *__vfs_check_reopen(vfs_dir_elem_t *elem)
 {
@@ -257,6 +266,7 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 {
     // int t;
     IN_LOCK
+    printf("vfs:%s",path);
     vfs_dir_elem_t *d_elem = __search_file_elem(path);
     if (!d_elem)
     {
@@ -296,6 +306,7 @@ int sys_read(int fd, char *buffer, uint32_t size)
         OUT_LOCK
         return VFS_NULL_OBJECT_ERR;
     }
+    
     int r = f->ops->read(f, size, buffer);
     OUT_LOCK
     return r;
@@ -346,15 +357,25 @@ int sys_lseek(int fd, uint32_t offset, uint8_t base)
     OUT_LOCK
     return r;
 }
+int sys_close(int fd)
+{
+
+}
 int sys_open(char *path, uint8_t flag)
 {
     if (!path)
         return VFS_BAD_ARG_ERR;
+    if(strlen(path)>=120)
+        return VFS_BAD_ARG_ERR;
+    char *buf_path=strdup(path);
+    path=buf_path;
     IN_LOCK
     vfs_file_t *f = vfs_fopen(path, flag);
+    kfree(buf_path);
     if (!f)
     {
         OUT_LOCK
+        
         return VFS_NULL_OBJECT_ERR;
     }
     printf("fd open ok!;");

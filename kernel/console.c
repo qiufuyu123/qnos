@@ -2,6 +2,7 @@
 #include"mem/memorylayout.h"
 #include"io.h"
 #include"string.h"
+#include"kobjects/obj_serial.h"
 char *video_buffer=(char*)TEXT_VIDEO_BUFFER;
 int cx=0,cy=0;
 char bg=0,fg=Vga_White;
@@ -61,6 +62,7 @@ void putchar(char c)
     {
     video_buffer[(cy*VGA_WIDTH+cx)*2]=c;
     video_buffer[(cy*VGA_WIDTH+cx)*2+1]=((bg<<4)|fg);
+    write_serial(c);
     cx++;
     }
     flush_cursor();
