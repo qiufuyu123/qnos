@@ -120,7 +120,7 @@ TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
 //创建最终线程的核心函数     创建用户进程以及创建内核线程的函数都是对这个函数的封装
 //会操作TCB链表 需要加锁
 void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint32_t addr,uint32_t page_counte,bool is_kern_thread,uint32_t pdt_vaddr,TCB_t *parent){	
-	asm volatile("cli");  //由于创建过程会使用到共享的数据 不使用锁的话会造成临界区错误 所以我们在此处关闭中断
+	//asm volatile("cli");  //由于创建过程会使用到共享的数据 不使用锁的话会造成临界区错误 所以我们在此处关闭中断
 	TCB_t * new_tcb = create_TCB(tid,addr,page_counte);
 	//sizeof(TCB_t);
 	TCB_t * temp_next = cur_tcb->next;
@@ -143,7 +143,7 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 	//new_tcb->context.ebp=new_tcb->context.esp;
 	new_tcb->parent_thread=parent;
 	new_tcb->name=strdup(name);
-	asm volatile("sti");	
+	//asm volatile("sti");	
 }
 void switch_to_user_mode() {
 			    // Set up a stack structure for switching to user mode.	
@@ -252,6 +252,7 @@ int kernel_fork()
 
 int _user_task_func(void *args)
 {
+	cli();
 	printf("before switch!");
 	//  switch_to_user_mode();
 	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
@@ -264,12 +265,20 @@ int _user_task_func(void *args)
 	//*ptr=123;
 	//printf("test user pdt:%d",*ptr);
 	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
-	//printf("fd is %d;",fd);
+	//cli();
+	printf("fd is %d;",fd);
+	
 	sys_read(fd,ptr,4096*2);
-	//sys_tell(fd);
+	
+	int l=sys_tell(fd);
+	cli();
+	printf("file read ok!(%d bytes)",l);
+	while(1);
 	func=qbinary_load(ptr,ptr,4096*2-sizeof(QNBinary_t));
 	//func=ptr;
 	printf("func address:0x%x",func);
+	
+	sti();
 	//kerneltest();
 	//switch_to_user_mode();
 	
@@ -330,10 +339,19 @@ TCB_t *create_user_init_thread()
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
-	page_setup_kernel_pdt();
+	// uint8_t *ptr=0x80000000;
+	// uint32_t entry_point=0;	//*ptr=123;
+	// //printf("test user pdt:%d",*ptr);
+	// int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
+	// //printf("fd is %d;",fd);
+	// sys_read(fd,ptr,4096*2);
+	// //sys_tell(fd);
+	// entry_point= qbinary_load(ptr,ptr,4096*2-sizeof(QNBinary_t));
+	
+	//func=ptr;
 	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
 	//p->user=1;
-	
+	page_setup_kernel_pdt();
 	sti();
 	return new_tcb;
 }
@@ -347,6 +365,7 @@ TCB_t *create_user_init_thread()
 //使用detach，在detach中实现线程将参数复制
 TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 	//bitmap default_bitmap;
+	
 	uint32_t page_counte = 1;
 	uint32_t TCB_page = kmalloc_page(1);
 	uint32_t default_pdt_vaddr = 0x0;

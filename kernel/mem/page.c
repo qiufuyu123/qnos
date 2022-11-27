@@ -157,8 +157,14 @@ page_directory_t *page_clone_cleaned_page()
     }
     
     
-    re->cr0_paddr=page_kv2p(re->ptable_dir);
-    printf("clone a kernel pdt :0x%x -->0x%x;",re->ptable_dir,re->cr0_paddr);
+    //uint32_t aed_adr=ngx_align((uint32_t)re->ptable_dir,4096);
+    re->cr0_paddr=page_kv2p((uint32_t)re+4096*3);
+    printf("clone a kernel pdt(%x) : 0x%x -->0x%x;",(uint32_t)re+4096*3, re->ptable_dir,re->cr0_paddr);
+    // while (1)
+    // {
+    //     /* code */
+    // }
+    
     return re;
 }
 void init_page()

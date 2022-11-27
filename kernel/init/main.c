@@ -324,6 +324,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
 
     init_syscall();
     printf("user adddress:0x%x;",test_user_task);
+    ksleep(5000);
     create_user_init_thread();
     //jump_usermode();
     //switch_to_user_mode();
