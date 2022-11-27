@@ -1,7 +1,12 @@
 #include"string.h"
 #include"console.h"
 #include<stdarg.h>
-
+#include"process/sync.h"
+lock_t print_lock;
+void init_printlock()
+{
+	lock_init(&print_lock);
+}
 static void printf_putchar( char c )
 {
 	Klogger->putchr(c);
@@ -71,6 +76,7 @@ static void printf_putuint(uint32_t u)
 
 void printf(const char *s, ...)
 {
+	//lock_acquire(&print_lock);
 	va_list args;
 
 	uint32_t u;
@@ -116,4 +122,5 @@ void printf(const char *s, ...)
 		s++;
 	}
 	va_end(args);
+	//lock_release(&print_lock);
 }

@@ -45,7 +45,7 @@ struct context_t{       //存放在内核栈中的任务上下文
 typedef
 struct TCB_t{
 	uint32_t * kern_stack_top;    //对应的内核栈顶地址
-	uint32_t *kern_user2kern_stack_top;
+	uint32_t kern_user2kern_stack_top;
 	task_status_t task_status;  
 	list_elem_t lock_tag;
 	list_elem_t dead_tag;

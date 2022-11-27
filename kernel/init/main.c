@@ -13,6 +13,7 @@
 #include"mem/vmm.h"
 #include"mem/malloc.h"
 #include"kobjects/kobject.h"
+#include"kobjects/kobjs.h"
 #include"process/task.h"
 #include"clock.h"
 #include"hardware/ata.h"
@@ -29,6 +30,7 @@
 #include"kobjects/obj_serial.h"
 #define VIDEO 0xB8000
 #define __DEBUG_FILE_SYSTEM 0
+extern circlequeue_t stdin_buf;
 lock_t test_lock;
 sysmodule_t*t_m;
 extern uint32_t kstart,kend;
@@ -54,7 +56,7 @@ void test_t1(void *args)
         printf("t1 open fail!\n");
         while(1);
     }
-    char buf[3];
+    char buf[30];
     sys_read(fd,buf,3);
     printf("t1:read 3 bytes from 0:%s",buf);
     #endif
@@ -77,7 +79,13 @@ void test_t1(void *args)
     while (1)
     {
         uint8_t c= keyboard_get_key();
-        if(c)printf("%c",c);
+        if(c)
+        {
+            printf("%c",c);
+            //circlequeue_push(&stdin_buf,&c);
+            stdin_write(0,1,&c);
+        }
+
         /* code */
     }
     
@@ -91,10 +99,11 @@ void test_t2(void *args)
         printf("t2 open fail!\n");
         while(1);
     }
-    char buf[3];
+    char buf[30];
     sys_lseek(fd,3,SEEK_SET);
     sys_read(fd,buf,3);
     printf("t2:read 3 bytes from 3:%s",buf);
+    while(1);
     #endif
     //     printf("acquiring lock...(T2);");
     // lock_acquire(&test_lock);
@@ -205,8 +214,8 @@ int kernelmain(uint32_t magic,uint32_t addr)
     ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
     init_fslist();
     #endif
-    //create_kern_thread("1",&test_t1,0);
-    //create_kern_thread("2",&test_t2,0);
+    create_kern_thread("1",&test_t1,0);
+    create_kern_thread("2",&test_t2,0);
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
     //printf("buf is %x\n",buf);

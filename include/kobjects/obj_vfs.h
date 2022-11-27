@@ -184,6 +184,7 @@ int init_fslist();
 vfs_inode_t* vfs_alloc_inode();
 vfs_dentry_t* vfs_alloc_dentry();
 vfs_dir_elem_t *vfs_alloc_delem();
+vfs_file_t*vfs_alloc_file();
 ///void mount_root_sb();
 int init_vfs();
 vfs_file_t *vfs_fopen(char *path,uint8_t flag);

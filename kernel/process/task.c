@@ -6,8 +6,10 @@
 #include"mem/page.h"
 #include"string.h"
 #include"utils/fastmapper.h"
+#include"kobjects/kobjs.h"
 #include"gates/tss.h"
 #include"process/syscall.h"
+#include"kelf.h"
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
@@ -82,9 +84,9 @@ void threads_init(){
 	TCB_t *tcb_buffer_addr = &main_TCB;
 	_init_main_thread(&main_TCB);
 	cur_tcb = &main_TCB;
-	main_esp=kmalloc_page(4);
-	//tss_update(main_esp+4*4096);
-
+	main_esp=kmalloc_page(6);
+	tss_update(main_esp+6*4096);
+	printf("MAINESP%x\n",main_esp);
 	list_init(&dead_thread_list);
 	// for (int i = 0; i < 4; i++)
 	// {
@@ -147,7 +149,7 @@ void switch_to_user_mode() {
 			    // Set up a stack structure for switching to user mode.	
 	//cli();
 // 	printf("before tss");
- 	tss_update(get_running_progress()->kern_user2kern_stack_top+4096);
+ 	//tss_update(get_running_progress()->kern_user2kern_stack_top+4096);
 	printf("after tss");
    asm volatile("  \
       cli; \
@@ -251,11 +253,11 @@ int kernel_fork()
 int _user_task_func(void *args)
 {
 	printf("before switch!");
-	// switch_to_user_mode();
-	// __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
-	// __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
-	// __base_syscall(SYSCALL_EXIT,0,0,0,0);
-	// while(1);
+	//  switch_to_user_mode();
+	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
+	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
+	// // __base_syscall(SYSCALL_EXIT,0,0,0,0);
+	//  while(1);
 	int (*func)()=args;
 	
 	uint8_t *ptr=0x80000000;
@@ -264,7 +266,9 @@ int _user_task_func(void *args)
 	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
 	//printf("fd is %d;",fd);
 	sys_read(fd,ptr,4096*2);
-	func=ptr;
+	//sys_tell(fd);
+	func=qbinary_load(ptr,ptr,4096*2-sizeof(QNBinary_t));
+	//func=ptr;
 	printf("func address:0x%x",func);
 	//kerneltest();
 	//switch_to_user_mode();
@@ -298,12 +302,14 @@ TCB_t *create_user_init_thread()
 {
 	cli();
 	TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
-	new_tcb->kern_user2kern_stack_top=kmalloc_page(1);
+	new_tcb->kern_user2kern_stack_top=kmalloc_page(4);
+	tss_update(new_tcb->kern_user2kern_stack_top+4096*4);
 	if(!new_tcb->kern_user2kern_stack_top)
 	{
 		clean_up_dead(new_tcb);
 		return NULL;
 	}
+	new_tcb->fd_list[0]=create_stdin_file();
 	new_tcb->is_kern_thread=0;
 	//new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
@@ -356,6 +362,7 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 		return 0;
 	}
 	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,&main_TCB);
+	printf("[CREATE a kernel thread:stack0x%x %s]",((TCB_t*)TCB_page)->kern_stack_top,((TCB_t*)TCB_page)->name);
 	return TCB_page;
 }
 int thread_add_fd(vfs_file_t* file)
@@ -517,16 +524,17 @@ void user_exit(){
 	// printf("in thread exit!");
 	// get_running_progress()->task_status=TASK_DIED;
 	// sti();
-	remove_thread(get_running_progress());
-	//__freeing_mem_thread();
-	TCB_t *now = cur_tcb;
-	TCB_t *next_tcb = cur_tcb->next;
-	next_tcb->time_left = TIME_CONT;
-	cur_tcb = cur_tcb->next;
-	printf("thread:%d exit with code:%d;",now->tid,now->context.eax);
-	//list_append(&dead_thread_list,&now->dead_tag);
-	switch_to(&(now->context),&(next_tcb->context));
+	// remove_thread(get_running_progress());
+	// //__freeing_mem_thread();
+	// TCB_t *now = cur_tcb;
+	// TCB_t *next_tcb = cur_tcb->next;
+	// next_tcb->time_left = TIME_CONT;
+	// cur_tcb = cur_tcb->next;
+	// printf("thread:%d exit with code:%d;",now->tid,now->context.eax);
+	// //list_append(&dead_thread_list,&now->dead_tag);
+	// switch_to(&(now->context),&(next_tcb->context));
 	//get_running_progress()->task_status=TASK_DIED;
+	thread_block();
 	//注意 暂时没有回收此线程页
 }
 

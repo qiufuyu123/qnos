@@ -320,15 +320,49 @@ int sprintf(char * str, const char *fmt, ...)
     va_end(ap);
     return r;
 }
+int scanf(char *str,...)
+{
+        va_list args;
+    int val;
+    //得到首个%对应的字符地址
+    va_start(args, str);
+    char buf[101]={0};
+    for (int i = 0; i < 100; i++)
+    {
+        
+    }
+    
+    val= vsprintf(buf, str, args);
+    va_end(args);
+    __base_syscall(SYSCALL_PRINTF,buf,0,0,0);
+    return val;
+}
 int printf(char *str,...)
 {
     va_list args;
     int val;
     //得到首个%对应的字符地址
     va_start(args, str);
-    char buf[100];
+    char buf[100]={0};
     val= vsprintf(buf, str, args);
     va_end(args);
     __base_syscall(SYSCALL_PRINTF,buf,0,0,0);
     return val;
+}
+int read(int fd,char *buffer,int size)
+{
+    return __base_syscall(SYSCALL_READ,fd,buffer,size,0);
+}
+char getch()
+{
+    return __base_syscall(SYSCALL_GETCH,0,0,0,0);
+}
+char *gets_s(char*str,int len)
+{
+    __base_syscall(SYSCALL_GETS,str,len,0,0);
+    return str;
+}
+char *gets(char*str)
+{
+    return gets_s(str,99999);
 }

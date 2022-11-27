@@ -1,6 +1,6 @@
 include ../../config.mk
 SYS_NAME= libc.a
-OBJS= stdio.o string.o 
+OBJS= stdio.o string.o stdlib.o conio.o
 #CC_FLAG=-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -ffreestanding -fstrength-reduce -finline-functions 
 all: $(OBJS)
 	-rm ../$(SYS_NAME) 

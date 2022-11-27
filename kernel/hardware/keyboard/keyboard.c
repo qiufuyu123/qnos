@@ -13,6 +13,8 @@
 #include"utils/circlequeue.h"
 //ioqueue_t kbd_buf;
 circlequeue_t key_board_queue;
+circlequeue_t wait_thread_queue;
+TCB_t* blocked_thread;
 lock_t kbd_lock;
 static inline uint8_t inb(uint16_t port) {
    uint8_t data;
@@ -25,7 +27,7 @@ static inline uint8_t inb(uint16_t port) {
 #define esc		'\033'	 // 八进制表示字符,也可以用十六进制'\x1b'
 #define backspace	'\b'
 #define tab		'\t'
-#define enter		'\r'
+#define enter		'\n'
 #define delete		'\177'	 // 八进制表示字符,十六进制为'\x7f'
 
 /* 以上不可见字符一律定义为0 */
@@ -221,6 +223,7 @@ void intr_keyboard_handler(registers_t reg) {
 	         //put_char(cur_char,BLACK,WHITE);
 			 //printf("[%c]",cur_char);
             circlequeue_push(&key_board_queue,&cur_char);
+            thread_wakeup(blocked_thread);
          }
 		//printf("%c",cur_char);
 	 	return;
@@ -243,6 +246,7 @@ void intr_keyboard_handler(registers_t reg) {
          {
 	         //put_char(cur_char,BLACK,WHITE);
             circlequeue_push(&key_board_queue,&scancode);
+            thread_wakeup(blocked_thread);
          }
       //console_print_str("unknow key ");
    }
@@ -255,6 +259,7 @@ void keyboard_init() {
    lock_init(&kbd_lock);
    printf("kbdinit");
    circlequeue_init(&key_board_queue,128,1);
+   circlequeue_init(&wait_thread_queue,20,4);
    register_interrupt_handler(0x21,&intr_keyboard_handler);
    //register_handler(0x21, intr_keyboard_handler);
    //put_str("keyboard init done\n");
@@ -266,7 +271,16 @@ char keyboard_get_key()
 	if(!circlequeue_empty(&key_board_queue))
 	{
 		k=*(char*)circlequeue_get(&key_board_queue);
-	}
+	}else
+   {
+      blocked_thread=get_running_progress();
+      //circlequeue_push(&wait_thread_queue,get_running_progress());
+      //printf("[kbd block]");
+      thread_block();
+      //printf("[kbd wakeup]");
+      k=*(char*)circlequeue_get(&key_board_queue);
+   }
+
 	lock_release(&kbd_lock);
 	return k;
         //enum intr_status old=intr_disable();

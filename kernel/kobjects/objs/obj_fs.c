@@ -29,7 +29,11 @@ vfs_dir_elem_t *vfs_alloc_delem()
 {
     return alloc_in_slab_unit(dir_elem_slab);
 }
-#define vfs_alloc_file alloc_in_slab_unit(file_slab)
+vfs_file_t*vfs_alloc_file()
+{
+    return alloc_in_slab_unit(file_slab);
+}
+//#define vfs_alloc_file 
 int mount_root_sb()
 {
     root_sb = kmalloc(sizeof(vfs_super_block_t));
@@ -279,7 +283,7 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     //     OUT_LOCK
     //     return reopen;
     // }
-    vfs_file_t *f = vfs_alloc_file;
+    vfs_file_t *f = vfs_alloc_file();
     if (!f)
     {
         OUT_LOCK
@@ -297,6 +301,7 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 }
 int sys_read(int fd, char *buffer, uint32_t size)
 {
+    //printf("IN SYSREAD");
     if (fd < 0)
         return VFS_BAD_ARG_ERR;
     IN_LOCK

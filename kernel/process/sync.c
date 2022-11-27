@@ -8,6 +8,7 @@ void lock_init(lock_t*lock)
 }
 void lock_acquire(lock_t*lock)
 {
+    if(!get_running_progress())return;
     cli();
     if(lock->holder_task==get_running_progress())
     {
@@ -55,6 +56,7 @@ void lock_acquire(lock_t*lock)
 }
 void lock_release(lock_t *lock)
 {
+    if(!get_running_progress())return;
     //printf("in releasing...;");
     if(lock->holder_task==get_running_progress())
     {

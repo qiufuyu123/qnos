@@ -307,6 +307,9 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
                 // test if a pixel is drawn here
                 if ((bCh >> px++) & 1) {
                     vga_buffer[i] = color;
+                }else
+                {
+                    vga_buffer[i]=0x00000000;
                 }
                 i++;
             }
@@ -324,7 +327,7 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
                     // test if the pixel will be off screen
                     if (xpos > 0 && xpos < vga_width && yy+y > 0 && yy+y < vga_height)
                         vga_buffer[ i + xpos] = color;
-                }
+                }else vga_buffer[i]=0x00000000;
                 xpos++;
             }
         } 
@@ -339,6 +342,12 @@ void vga_gen_puchar(char ch)
         }else if(ch=='\b')
         {
             if(cur_x>0)cur_x-=CHAR_W;
+            else if(cur_y>0)
+            {
+                cur_x=(vga_width/CHAR_W)*CHAR_W;
+                cur_y--;
+            }
+            vga_putchar(' ',cur_x,cur_y,0xffffffff);
             return;
         }else if(ch=='\n')
         {
@@ -370,10 +379,11 @@ void vga_printstr(char *str)
 }
 void vga_cls()
 {
-        for (uint32_t i = 0; i < vga_width*vga_height; i++)
+    for (uint32_t i = 0; i < vga_width*vga_height; i++)
     {
         vga_buffer[i]=0;
     }
+    cur_x=cur_y=0;
 }
 void vga_updata()
 {
@@ -406,6 +416,7 @@ void init_vga(multiboot_info_t *mbi)
     vga_console.frame_buffer=vga_buffer;
     vga_console.page_cnt=vga_width*vga_height*4/4096;
     Klogger=&vga_console;
+    init_printlock();
     //vga_gen_puchar('h');
     //vga_gen_puchar('e');
     //vga_printstr("hello vga!\n");

@@ -4,6 +4,7 @@
 #include"mem/malloc.h"
 #include"gates/isr.h"
 #include"console.h"
+#include"hardware/keyboard/keyboard.h"
 int *syscall_handles=0;
 
 int syscall_nop(int v1,int v2,int v3,int v4)
@@ -14,10 +15,24 @@ int syscall_printf(char *str)
 {
     printf("%s",str);
 }
+char syscall_getch()
+{
+    //printf("getch!");
+    //return keyboard_get_key();
+    char c=0;
+    while (1)
+    {
+        sys_read(0,&c,1);
+        if(c)break;
+    }
+    //printf("[getc]%c",c);
+    
+    return c;
+}
 int syscall_interrupt(registers_t*reg)
 {
     
-    printf("in syscall! 0x%x %d %d %d %d %d",reg,reg->ebx,reg->ecx,reg->edx,reg->edx,reg->edi);
+    //printf("in syscall! 0x%x %d %d %d %d %d",get_esp(),reg->ebx,reg->ecx,reg->edx,reg->edx,reg->edi);
     uint32_t syscall_id= reg->eax;
     //reg->eax=114;
     if(syscall_id>=SYSCALL_NR)
@@ -30,8 +45,37 @@ int syscall_interrupt(registers_t*reg)
 }
 int syscall_exit(int v1)
 {
-    printf("in syscall exit!");
-    //user_exit();
+    //printf("in syscall exit!");
+    user_exit();
+}
+int syscall_read(int v1,int v2,int v3,int v4)
+{
+    //printf("syscall read!%d %x %d",v1,v2,v3);
+    //char testbuf[20];
+    return sys_read(v1,v2,v3);
+    //printf("[%s]",testbuf);
+    //memcpy(v2,testbuf,20);
+}
+int syscall_gets(char *buf,int size,int v3,int v4)
+{
+    while (1)
+    {
+        //printf("in syscall get");
+        int r=sys_read(0,buf,size);
+        //printf("[%d/%d]",r,size);
+        if(r!=size)
+        {
+            
+            thread_block();
+            //printf("wake up!");
+        }
+        else
+        {
+            //printf("[return from syscall gets%s]",buf);
+            return size;
+        }
+    }
+    
 }
 void init_syscall()
 {
@@ -40,5 +84,9 @@ void init_syscall()
     syscall_handles[SYSCALL_NOP]=syscall_nop;
     syscall_handles[SYSCALL_PRINTF]=syscall_printf;
     syscall_handles[SYSCALL_EXIT]=syscall_exit;
+    syscall_handles[SYSCALL_GETCH]=syscall_getch;
+    syscall_handles[SYSCALL_CLRSCR]=Klogger->cls;
+    syscall_handles[SYSCALL_READ]=syscall_read;
+    syscall_handles[SYSCALL_GETS]=syscall_gets;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

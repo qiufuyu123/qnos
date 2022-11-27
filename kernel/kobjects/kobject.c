@@ -68,6 +68,7 @@ void init_all_objs()
 {
     init_kernel_obj();
     init_ata_obj();
+    init_stdio_obj();
     //kobj_list[KO_KERNEL_DEV]->ops->write(0,"hihihi",0,0);
 }
 void init_kobject()

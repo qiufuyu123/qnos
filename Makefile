@@ -2,10 +2,12 @@ include config.mk
 .PHONY: all iso sys clean
 
 QEMUOPTS = -kernel build/kernel.elf -m 128M -S  -nographic
+tool:
+	cd tools && make all
 all: sys
 	cd kernel && make -s
 qemu:
-	qemu-system-i386 -kernel ./build/kernel.elf -nographic -gdb tcp::5050 -S
+	qemu-system-i386 -kernel ./build/kernel.elf -nographic -gdb tcp::4321 -S
 sys:
 	-cd sys && make all
 	-cd lib && make all

@@ -275,7 +275,19 @@ int elf_relocate(elf_section_header *rel,char *address,uint32_t new_base)
     }
     return 0;
 }
-
+uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size)
+{
+    QNBinary_t *bhead=bindata;
+    if(bhead->magic[0]=='Q'&&bhead->magic[1]=='B'&&bhead->magic[2]=='F')
+    {
+        printf("checked magic!");
+        uint32_t r= bhead->v_entry;
+        memcpy(dest_,bindata+sizeof(QNBinary_t),size);
+        return r;
+    }
+    printf(bhead->magic);
+    return 0;
+}
 //验证elf格式是否正确，是否可加载， 正常返回0， 异常返回非0
 int elf_check(const uint8_t * d, size_t elflen){
     elf_header* h = (elf_header*)d;

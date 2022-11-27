@@ -7,7 +7,7 @@
 page_directory_t kpdir;
 #define __DEBUG_MODE 0,1
 #define __NON_DEBUG_MODE 1,0
-#define DEBUG_KERNEL_NUM __DEBUG_MODE
+#define DEBUG_KERNEL_NUM __NON_DEBUG_MODE
 static inline void invlpg(void* m)
 {
     /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */

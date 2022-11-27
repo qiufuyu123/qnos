@@ -45,6 +45,14 @@ extern "C" {
 
 // elf模块
 typedef struct elf_module elf_module;
+typedef struct 
+{
+    char magic[3];
+    uint32_t v_entry;
+}QNBinary_t;
+
+//return entry point vaddr
+uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size);
 
 //验证elf格式是否正确，是否可加载， 正常返回0， 异常返回非0
 int elf_check(const uint8_t *elfdata, size_t elflen);
