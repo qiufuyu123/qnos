@@ -12,6 +12,7 @@
 #ifndef _H_VMM
 #define _H_VMM
 #include"types.h"
+#include"mem/page.h"
 //262144 page in 1g kernel space ==> 2^18
 enum 
 {
@@ -34,7 +35,7 @@ typedef struct vmm_page
     uint32_t next_page  :18;    //only store the index(page num)
     uint32_t status :1;         //status 0: all free 1: used
 }vmm_page_t;
-vmm_page_t kvmm_page_list[262144];
+extern vmm_page_t kvmm_page_list[262144];
 typedef struct vmm_area
 {
     uint32_t p_first_num;

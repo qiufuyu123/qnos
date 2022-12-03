@@ -11,6 +11,7 @@
  *      edit by qiufuyu
  */
 vmm_buddy_list_t kbuddy_list;
+vmm_page_t kvmm_page_list[262144];
 int vmm_alloc_pnum(uint32_t size)
 {
     uint32_t now_s=0;

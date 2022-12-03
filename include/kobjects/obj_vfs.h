@@ -176,10 +176,10 @@ struct vfs_file
 typedef struct vfs_file vfs_file_t;
 #define FS_MAX_NUM 4
 #define inode2ptr(inode) elem2entry(vfs_inode_t,inode_ptr,(inode));
-list_t sb_list;
-vfs_super_block_t *root_sb;
+extern list_t sb_list;
+extern vfs_super_block_t *root_sb;
 extern slab_unit_t *file_slab;
-vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
+extern vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
 int init_fslist();
 vfs_inode_t* vfs_alloc_inode();
 vfs_dentry_t* vfs_alloc_dentry();

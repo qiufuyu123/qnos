@@ -16,7 +16,10 @@ slab_unit_t *inode_slab;
 slab_unit_t *dir_elem_slab;
 slab_unit_t *dentry_slab;
 slab_unit_t *file_slab;
-
+ list_t sb_list;
+ vfs_super_block_t *root_sb;
+//extern slab_unit_t *file_slab;
+ vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
 vfs_inode_t *vfs_alloc_inode()
 {
     return alloc_in_slab_unit(inode_slab);
