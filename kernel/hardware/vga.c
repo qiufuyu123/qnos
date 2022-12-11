@@ -1,3 +1,4 @@
+
 #include"hardware/vga.h"
 #include"console.h"
 #include"boot/multiboot.h"
@@ -274,6 +275,7 @@ uint64_t FONT[256] = {
 0x00003C3C3C3C0000,//þ
 0xFFFFFFFFFFFFFFFF,//ÿ
 };
+#define USE_VGA
 uint32_t cur_x,cur_y;
 //uint32_t max_text_x,max_text_y;
 uint32_t vga_width,vga_height;
@@ -288,6 +290,7 @@ void vga_put_pixel(uint32_t x,uint32_t y,uint32_t color)
     vga_buffer[ vga_width * y + x] = color;
 }
 void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
+    #ifdef USE_VGA
     uint32_t px = 0;  // position in the charactor - an 8x8 font = 64 bits
     uint64_t bCh = FONT[ch];
     
@@ -332,6 +335,7 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
             }
         } 
     }
+    #endif
 }
 void vga_gen_puchar(char ch)
 {
@@ -379,10 +383,12 @@ void vga_printstr(char *str)
 }
 void vga_cls()
 {
+    #ifdef USE_VGA
     for (uint32_t i = 0; i < vga_width*vga_height; i++)
     {
         vga_buffer[i]=0;
     }
+    #endif
     cur_x=cur_y=0;
 }
 void vga_updata()

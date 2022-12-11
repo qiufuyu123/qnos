@@ -1,3 +1,5 @@
+
+
 #include"process/task.h"
 #include"mem/page.h"
 #include"gates/isr.h"
@@ -29,7 +31,6 @@ void active_task(TCB_t *task)
          * 
          */
         tss_update(task->kern_user2kern_stack_top+4096*4);
-        //printf("switch user:%s;",task->name);
         
     }
 }

@@ -7,7 +7,7 @@
 page_directory_t kpdir;
 #define __DEBUG_MODE 0,1
 #define __NON_DEBUG_MODE 1,0
-#define DEBUG_KERNEL_NUM __NON_DEBUG_MODE
+#define DEBUG_KERNEL_NUM __DEBUG_MODE
 static inline void invlpg(void* m)
 {
     /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */
@@ -80,20 +80,42 @@ bool free_page(page_t *p)
         return true;
     }
 }
+page_t *get_page_from_u_pdir(page_directory_t *pd,uint32_t vaddr)
+{
+    vaddr/=4096;
+    int idx=vaddr/1024;
+    if(pd->ptable[idx])
+    {
+        pd->ptable_dir[idx]=page_kv2p(pd->ptable[idx])|0x7;//notice
+        return &pd->ptable[idx]->pages[vaddr%1024];
+    }
+    else
+    {
+        //TODO make a pte
+        pd->ptable[idx]=kmalloc_page(1);
+        memset(pd->ptable[idx],0,4096);
+        printf("[ALLOC A NEW PTE]\n");
+        pd->ptable_dir[idx]=page_kv2p(pd->ptable[idx])|0x7;
+        return &pd->ptable[idx]->pages[vaddr%1024];
+    }
+}
 page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr)
 {  
     vaddr/=4096;
     int idx=vaddr/1024;
     if(pd->ptable[idx])
     {
-        pd->ptable_dir[idx]=(uint32_t)pd->ptable[idx]|0x7;
+        pd->ptable_dir[idx]=(uint32_t)pd->ptable[idx]|0x7;//notice
         return &pd->ptable[idx]->pages[vaddr%1024];
     }
     else
     {
         //TODO make a pte
-        printf(":(");
-        return 0;
+        pd->ptable[idx]=kmalloc_page(1);
+        memset(pd->ptable[idx],0,4096);
+        printf("[ALLOC A NEW PTE]\n");
+        pd->ptable_dir[idx]=(uint32_t)pd->ptable[idx]|0x7;
+        return &pd->ptable[idx]->pages[vaddr%1024];
     }
 }
 void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value)
@@ -112,8 +134,8 @@ void page_u_map_unset(page_directory_t*pdir, uint32_t vaddr)
 }
 void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 {
-    alloc_page(get_page_from_pdir(pdir,vaddr),0,1);
-    //printf("set:0x%x;",vaddr);
+    alloc_page(get_page_from_u_pdir(pdir,vaddr),0,1);
+    printf("set:0x%x;",vaddr);
     //invlpg(vaddr);
 }
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa)
@@ -150,15 +172,16 @@ page_directory_t *page_clone_cleaned_page()
     page_directory_t *re=kmalloc_page(4);
     if(!re)return NULL;
     re->ptable_dir=(uint32_t)re+4096*3;
-    memcpy(&re->ptable[0],&kpdir.ptable[0],4096);
-    for (int i = 0; i < 1024; i++)
+    memcpy(&re->ptable[0],&kpdir.ptable[0],4096/4);
+    
+    for (int i = 0; i < 1024/4; i++)
     {
         if(kpdir.ptable_dir[i])re->ptable_dir[i]=(uint32_t)re->ptable[i]|0x7;
     }
     
     
     //uint32_t aed_adr=ngx_align((uint32_t)re->ptable_dir,4096);
-    re->cr0_paddr=page_kv2p((uint32_t)re+4096*3);
+    re->cr0_paddr=page_kv2p(re->ptable_dir);
     printf("clone a kernel pdt(%x) : 0x%x -->0x%x;",(uint32_t)re+4096*3, re->ptable_dir,re->cr0_paddr);
     // while (1)
     // {
@@ -212,6 +235,7 @@ void init_page()
     //page_map_set(Klogger->frame_buffer);
     printf("map vbuffer:%x\n",Klogger->frame_buffer);
     kpdir.cr0_paddr=kpdir.ptable_dir;
+    
     switch_page_directory(&kpdir);
     for (int i = 0; i < Klogger->page_cnt; i++)
     {

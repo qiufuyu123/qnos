@@ -1,3 +1,4 @@
+
 /**
  * @file task.h
  * @author qiufuyu (3038742090@qq.com)
@@ -34,14 +35,14 @@ struct context_t{       //存放在内核栈中的任务上下文
     uint32_t edx;
     uint32_t esi;
     uint32_t edi;
-	uint32_t eax;
+	//uint32_t eax;
     uint32_t eflags;
 	uint32_t esp;     //esp是保存在kern_stack_top中的       
 } __attribute__((packed)) context_t;       //由于要在汇编中使用 要编译成连续的分布
 
 //TCB结构 对于用户进程与内核线程 TCB结构是相同的 不同之处在于：
 //
-
+extern uint32_t _schedule_now,_schedule_next;
 typedef
 struct TCB_t{
 	uint32_t * kern_stack_top;    //对应的内核栈顶地址

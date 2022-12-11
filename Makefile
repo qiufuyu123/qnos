@@ -14,7 +14,7 @@ sys:
 iso: build/kernel.elf
 	-cp build/kernel.elf isodir/boot/kernel.bin
 	nm build/kernel.elf | grep '[0-9|a-f]* [T|B] [^$$]*' > isodir/boot/kernel.map
-	grub2-mkrescue -o qnos.iso isodir
+	grub-mkrescue -o qnos.iso isodir
 clean:
 	cd kernel && make clean
 	cd sys && make clean

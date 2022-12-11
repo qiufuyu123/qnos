@@ -1,3 +1,4 @@
+
 #include"process/task.h"
 #include"console.h"
 #include"io.h"
@@ -231,7 +232,7 @@ int kernel_fork()
 	new_tcb->context.ebp=new_stack_top-offset_ebp;
 	
 	//new_tcb->fork_mark=1;//Dont understand? roll back to the head of the file
-	new_tcb->context.eax=114;
+	//new_tcb->context.eax=114;
 	new_tcb->context.eflags=0x202;
 	//new_tcb->time_counter=0;
 	//new_tcb->time_left=TIME_CONT;
@@ -252,53 +253,19 @@ int kernel_fork()
 
 int _user_task_func(void *args)
 {
-	cli();
-	printf("before switch!");
-	//  switch_to_user_mode();
+	cli();//IMPORTANT!!!!!
+	printf("before switch! 0x%x",(uint32_t)args);
+	void(*func)()=args;
+	func();
+	//switch_to_user_mode();
+	while(1);
 	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
 	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
 	// // __base_syscall(SYSCALL_EXIT,0,0,0,0);
-	//  while(1);
-	int (*func)()=args;
 	
-	uint8_t *ptr=0x80000000;
-	//*ptr=123;
-	//printf("test user pdt:%d",*ptr);
-	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
-	//cli();
-	printf("fd is %d;",fd);
-	
-	sys_read(fd,ptr,4096*2);
-	
-	int l=sys_tell(fd);
-	cli();
-	printf("file read ok!(%d bytes)",l);
-	while(1);
-	func=qbinary_load(ptr,ptr,4096*2-sizeof(QNBinary_t));
-	//func=ptr;
-	printf("func address:0x%x",func);
-	
-	sti();
-	//kerneltest();
-	//switch_to_user_mode();
-	
-	
-	//tss_update(get_running_progress());
-	//__base_syscall(0,1,2,3,4);
-	//asm volatile("int $0x80");
-	//kerneltest();
-
-
-	//syscall_test();
-	//printf("get ret:%d;",func());
+	//printf("user thread idle!0x%x\n",page_kv2p_u(0x3ffda000));
 	//while(1);
-	//while (1);
-	// {
-	// 	/* code */
-	// }
 	
-	
-	func();
 	while(1);
 	//thread_function *func=args; 114;
 }
@@ -307,10 +274,40 @@ void remove_tcb(TCB_t *tcb)
 	kfree(tcb->fd_list);
 	
 }
+static inline void test_invlpg(void* m)
+{
+    /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */
+    asm volatile ( "invlpg (%0)" : : "b"(m) : "memory" );
+}
 TCB_t *create_user_init_thread()
 {
+	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
+	printf("fd is %d;",fd);
+	char *file_buf=kmalloc_page(2);
+	sys_read(fd,file_buf,4096*2);
+	int l=sys_tell(fd);
+	//cli();
+	printf("file read ok!(%d bytes)",l);
+	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t));
+	printf("solve entry point 0x%x\n",func);
+	uint32_t TCB_page = kmalloc_page(1);
+    if(TCB_page==0){
+        printf("Can`t Create New User Task Because Of Error When Alloc TCB Page From Kernel VMM!STOP!");
+		return 0;
+    }
+	int tid=thread_get_pid();
+	if(tid==-1)
+	{
+		kfree_page(TCB_page,1);
+		return 0;
+	}
 	cli();
-	TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
+	create_thread("userinit",tid,_user_task_func,0,TCB_page,1,1,0,0);
+
+
+	//TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
+	TCB_t*new_tcb=TCB_page;
+	
 	new_tcb->kern_user2kern_stack_top=kmalloc_page(4);
 	tss_update(new_tcb->kern_user2kern_stack_top+4096*4);
 	if(!new_tcb->kern_user2kern_stack_top)
@@ -319,14 +316,23 @@ TCB_t *create_user_init_thread()
 		return NULL;
 	}
 	new_tcb->fd_list[0]=create_stdin_file();
+	//new_tcb->is_kern_thread=1;
 	new_tcb->is_kern_thread=0;
-	//new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
+	printf("in user new!\n");
+	printf("user pdt0x%x\n",new_tcb->pdt_vaddr);
+	//page_setup_pdt(new_tcb->pdt_vaddr);
+	
 	page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
+	//test_invlpg(0x80000000);
 	page_u_map_set(new_tcb->pdt_vaddr,0x80001000);//well 8kb is enough for our test!
+	//test_invlpg(0x80001000);
 	new_tcb->kern_stack_top=0xFFFFe000;
+	page_u_map_set(new_tcb->pdt_vaddr,0xffff0000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
+	//test_invlpg(0xffffe000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
+	//test_invlpg(0xffffd000);
 	new_tcb->context.ebp=new_tcb->kern_stack_top;
 	/**
 	 * @brief NOTICE
@@ -334,24 +340,27 @@ TCB_t *create_user_init_thread()
 	 * We switch to its pdt and set the stack
 	 * then , we switch back to kernel 
 	 */
+	/**
+	 * DO NOT USE get_page_from_pdir TO GET A user_page!!!!!!
+	 * Instead,use get_page_from_u_pdir
+	 * Because get_page_from_pdir will flush pte_mapping information!
+	*/
+	//printf("STACK PHY ADDR:0x%x\n",get_page_from_pdir(new_tcb->pdt_vaddr,0xffffe000)->frame*0x1000);
+	
+	printf("set up to %x\n",new_tcb->pdt_vaddr);
 	page_setup_pdt(new_tcb->pdt_vaddr);
-	*(--new_tcb->kern_stack_top)=0;
+	*(--new_tcb->kern_stack_top)=func;
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
-	// uint8_t *ptr=0x80000000;
-	// uint32_t entry_point=0;	//*ptr=123;
-	// //printf("test user pdt:%d",*ptr);
-	// int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
-	// //printf("fd is %d;",fd);
-	// sys_read(fd,ptr,4096*2);
-	// //sys_tell(fd);
-	// entry_point= qbinary_load(ptr,ptr,4096*2-sizeof(QNBinary_t));
-	
-	//func=ptr;
+	memcpy(0x80000000,file_buf,4096*2);
+	printf("func execute address:0x%x",func);
+	//page_setup_kernel_pdt();
 	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
 	//p->user=1;
 	page_setup_kernel_pdt();
+	printf("STACK IN KERNEL 0x%x\n",page_kv2p(0xffffe000));
+	printf("prepare user addr ok!");
 	sti();
 	return new_tcb;
 }
@@ -365,7 +374,7 @@ TCB_t *create_user_init_thread()
 //使用detach，在detach中实现线程将参数复制
 TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 	//bitmap default_bitmap;
-	
+	//cli();
 	uint32_t page_counte = 1;
 	uint32_t TCB_page = kmalloc_page(1);
 	uint32_t default_pdt_vaddr = 0x0;
@@ -380,8 +389,11 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 		kfree_page(TCB_page,1);
 		return 0;
 	}
+	cli();
 	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,&main_TCB);
+	sti();
 	printf("[CREATE a kernel thread:stack0x%x %s]",((TCB_t*)TCB_page)->kern_stack_top,((TCB_t*)TCB_page)->name);
+	//sti();
 	return TCB_page;
 }
 int thread_add_fd(vfs_file_t* file)
@@ -414,6 +426,7 @@ int clean_up_dead(TCB_t* tmp)
 	kfree_page(tmp,1);
 	return 0;
 }
+uint32_t _schedule_now,_schedule_next;
 int schedule(){
     //check if the thread module is available
     if(get_running_progress()==NULL){
@@ -477,10 +490,17 @@ int schedule(){
 	//printf("switch:%x-%x %d-%d;",now,next_tcb,now->tid,next_tcb->tid);
 	//printf("--->esp:%d eax:%d ebp:%d---><---esp:%d eax:%d ebp:%d\n",now->context.esp,now->context.eax,now->context.ebp,next_tcb->context.esp,next_tcb->context.eax,next_tcb->context.ebp);
 	//main_esp=get_esp();
+	_schedule_now=&(now->context);
+	_schedule_next=&(next_tcb->context);
+	//switch_get(_schedule_now);
+	//active_task(next_tcb);
 	active_task(next_tcb);
+	//switch_with_pdt(_schedule_now,_schedule_next);
+	//active_task(next_tcb);
 	//tss_update(get_esp());
-	switch_to(&(now->context),&(next_tcb->context));  
-	    
+	//printf("pdt already changed!");
+	switch_to(_schedule_now,_schedule_next);  
+	
 }
 void thread_add_child(TCB_t*parent,TCB_t*child)
 {

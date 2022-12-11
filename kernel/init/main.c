@@ -1,3 +1,4 @@
+
 #include"types.h"
 #include"kelf.h"
 #include"boot/multiboot.h"
@@ -125,25 +126,30 @@ void test_t2(void *args)
     printf("T2 release lock!;");
     printf("[%s];",get_running_progress()->name);*/
     
-    int ret=kernel_fork();
-    printf("ret from fork!;%d next:0x%x;",get_running_progress()->tid,test_t2);
+    // int ret=kernel_fork();
+    // printf("ret from fork!;%d next:0x%x;",get_running_progress()->tid,test_t2);
 
-    if(ret==0)
-    {
-        printf("This is a forked thread!\n");
-        while (1)
-        {
-            /* code */
-        }
-    }else
-    {
-        printf("We fork a child thread:%d!\n",ret);
-        while (1)
-        {
-            /* code */
-        }
+    // if(ret==0)
+    // {
+    //     printf("This is a forked thread!\n");
+    //     while (1)
+    //     {
+    //         /* code */
+    //     }
+    // }else
+    // {
+    //     printf("We fork a child thread:%d!\n",ret);
+    //     while (1)
+    //     {
+    //         /* code */
+    //     }
         
+    // }
+    while (1)
+    {
+        /* code */
     }
+    
 
 }
 int test_user_task(void *argv)
