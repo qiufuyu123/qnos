@@ -280,8 +280,9 @@ uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size)
     QNBinary_t *bhead=bindata;
     if(bhead->magic[0]=='Q'&&bhead->magic[1]=='B'&&bhead->magic[2]=='F')
     {
-        printf("checked magic!");
+        
         uint32_t r= bhead->v_entry;
+        printf("checked magic! ventry:0x%x\n",r);
         memcpy(dest_,bindata+sizeof(QNBinary_t),size);
         return r;
     }

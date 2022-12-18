@@ -13,5 +13,5 @@ all: $(OBJS)
 	$(NASM) $(NASM_FLAG) $< -o $@
 
 clean:
-	rm $(OBJS) -rf
-	rm *.sys
+	-rm $(OBJS) -rf
+	-rm *.sys

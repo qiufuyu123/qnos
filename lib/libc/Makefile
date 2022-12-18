@@ -1,6 +1,6 @@
 include ../../config.mk
 SYS_NAME= libc.a
-OBJS= stdio.o string.o stdlib.o conio.o
+OBJS= stdio.o string.o stdlib.o conio.o fcntl.o
 #CC_FLAG=-m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs -ffreestanding -fstrength-reduce -finline-functions 
 all: $(OBJS)
 	-rm ../$(SYS_NAME) 
@@ -14,5 +14,6 @@ all: $(OBJS)
 	$(NASM) $(NASM_FLAG) $< -o $@
 
 clean:
-	rm $(OBJS) -rf
-	rm *.sys
+	-rm $(OBJS) -rf
+	-rm libc.a
+	-rm ../libc.a

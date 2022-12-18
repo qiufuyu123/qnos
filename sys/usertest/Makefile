@@ -7,7 +7,7 @@ CC_FLAG+= -Wl,--build-id=none
 all: $(OBJS) 
 	-rm ../../isodir/boot/sys/usertest.bin 
 	$(LD) $(LD_FLAG) $(OBJS) ../../lib/libc.a -Ttext=0x80000000 -e main -o $(SYS_NAME) 
-	#objcopy -O binary $(SYS_NAME) usertest.bin
+	-rm *.qbin
 	$(ELF2OBJ) $(SYS_NAME) usertest.bin
 	cp usertest.bin ../../isodir/boot/sys/
 %.o:%.c
@@ -17,5 +17,8 @@ all: $(OBJS)
 	$(NASM) $(NASM_FLAG) $< -o $@
 
 clean:
-	rm $(OBJS) -rf
-	rm *.qbin
+	-rm $(OBJS) -rf
+	-rm *.qbin
+	-rm *.bin
+	-rm *.elf
+	-rm *.obj

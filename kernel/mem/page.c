@@ -118,6 +118,12 @@ page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr)
         return &pd->ptable[idx]->pages[vaddr%1024];
     }
 }
+void page_unlink_pa(uint32_t vaddr)
+{
+    page_t*p= get_page_from_pdir(&kpdir,vaddr);
+    p->present=0;
+    p->frame=0;
+}
 void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value)
 {
     page_t*p= get_page_from_pdir(pdir,vaddr);
@@ -135,12 +141,12 @@ void page_u_map_unset(page_directory_t*pdir, uint32_t vaddr)
 void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 {
     alloc_page(get_page_from_u_pdir(pdir,vaddr),0,1);
-    printf("set:0x%x;",vaddr);
+    //printf("set:0x%x;",vaddr);
     //invlpg(vaddr);
 }
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_pdir(pdir,vaddr),0,1,pa);
+    alloc_page_paddr(get_page_from_u_pdir(pdir,vaddr),0,1,pa);
     //printf("set:0x%x;",vaddr);
     //invlpg(vaddr);
 }
@@ -231,7 +237,8 @@ void init_page()
     }
     //last map the video buffer
     
-    
+    page_map_set(0xffffe000);
+    page_map_set(0xffffd000);
     //page_map_set(Klogger->frame_buffer);
     printf("map vbuffer:%x\n",Klogger->frame_buffer);
     kpdir.cr0_paddr=kpdir.ptable_dir;

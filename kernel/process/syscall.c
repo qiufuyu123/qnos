@@ -48,14 +48,17 @@ int syscall_exit(int v1)
     //printf("in syscall exit!");
     user_exit();
 }
-int syscall_read(int v1,int v2,int v3,int v4)
+int syscall_foperate(int v1,int v2,int v3,int v4)
 {
-    //printf("syscall read!%d %x %d",v1,v2,v3);
-    //char testbuf[20];
-    return sys_read(v1,v2,v3);
-    //printf("[%s]",testbuf);
-    //memcpy(v2,testbuf,20);
+    if(v1==FOP_OPEN)
+    {
+        //printf("[SYSCALL OPEN:%s]",v2);
+        return sys_open(v2,v3);
+    }
+    else if(v1==FOP_READ)return sys_read(v2,v3,v4);
+    else if(v1==FOP_CLOSE)return sys_close(v1);
 }
+
 int syscall_gets(char *buf,int size,int v3,int v4)
 {
     while (1)
@@ -77,6 +80,11 @@ int syscall_gets(char *buf,int size,int v3,int v4)
     }
     
 }
+void syscall_cls()
+{
+    printf("in cls");
+    Klogger->cls();
+}
 void init_syscall()
 {
     //if(syscall_handles)return;
@@ -85,8 +93,9 @@ void init_syscall()
     syscall_handles[SYSCALL_PRINTF]=syscall_printf;
     syscall_handles[SYSCALL_EXIT]=syscall_exit;
     syscall_handles[SYSCALL_GETCH]=syscall_getch;
-    syscall_handles[SYSCALL_CLRSCR]=Klogger->cls;
-    syscall_handles[SYSCALL_READ]=syscall_read;
+    syscall_handles[SYSCALL_CLRSCR]=syscall_cls;
+    //syscall_handles[SYSCALL_READ]=syscall_read;
     syscall_handles[SYSCALL_GETS]=syscall_gets;
+    syscall_handles[SYSCALL_FOP]=syscall_foperate;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

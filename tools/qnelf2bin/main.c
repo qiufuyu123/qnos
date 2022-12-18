@@ -73,5 +73,7 @@ int main(int argc,char *argv[]) {
     fwrite(&bhead,sizeof(QNBinary_t),1,fp);
     fwrite(fbuf,lens,1,fp);
     fclose(fp);
+    sprintf(cmds,"rm %s.obj -rf",fname);
+    system(cmds);
     return 0;
 }

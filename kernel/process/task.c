@@ -3,6 +3,7 @@
 #include"console.h"
 #include"io.h"
 #include"mem/malloc.h"
+#include"mem/vmm.h"
 #include"mem/memorylayout.h"
 #include"mem/page.h"
 #include"string.h"
@@ -283,8 +284,8 @@ TCB_t *create_user_init_thread()
 {
 	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
 	printf("fd is %d;",fd);
-	char *file_buf=kmalloc_page(2);
-	sys_read(fd,file_buf,4096*2);
+	char *file_buf=kmalloc_page(3);
+	sys_read(fd,file_buf,4096*3);
 	int l=sys_tell(fd);
 	//cli();
 	printf("file read ok!(%d bytes)",l);
@@ -323,9 +324,10 @@ TCB_t *create_user_init_thread()
 	printf("user pdt0x%x\n",new_tcb->pdt_vaddr);
 	//page_setup_pdt(new_tcb->pdt_vaddr);
 	
-	page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
-	//test_invlpg(0x80000000);
-	page_u_map_set(new_tcb->pdt_vaddr,0x80001000);//well 8kb is enough for our test!
+	// page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
+	// //test_invlpg(0x80000000);
+	// page_u_map_set(new_tcb->pdt_vaddr,0x80001000);//well 8kb is enough for our test!
+	// page_u_map_set(new_tcb->pdt_vaddr,0x80002000);
 	//test_invlpg(0x80001000);
 	new_tcb->kern_stack_top=0xFFFFe000;
 	page_u_map_set(new_tcb->pdt_vaddr,0xffff0000);
@@ -348,13 +350,20 @@ TCB_t *create_user_init_thread()
 	//printf("STACK PHY ADDR:0x%x\n",get_page_from_pdir(new_tcb->pdt_vaddr,0xffffe000)->frame*0x1000);
 	
 	printf("set up to %x\n",new_tcb->pdt_vaddr);
+	//
+	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80000000,page_kv2p(file_buf));
+	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80001000,page_kv2p(file_buf+4096));
+	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80002000,page_kv2p(file_buf+4096*2));
+	//
+	vmm_remap_pages(new_tcb->pdt_vaddr,file_buf,3,0x80000000);
 	page_setup_pdt(new_tcb->pdt_vaddr);
 	*(--new_tcb->kern_stack_top)=func;
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
-	memcpy(0x80000000,file_buf,4096*2);
-	printf("func execute address:0x%x",func);
+	//memcpy(0x80000000,file_buf,4096*3);
+	//kfree_page(file_buf,2);
+	printf("func execute address:0x%x %d",func,*(uint32_t*)0x80000000);
 	//page_setup_kernel_pdt();
 	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
 	//p->user=1;

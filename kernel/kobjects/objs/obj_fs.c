@@ -305,6 +305,7 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 int sys_read(int fd, char *buffer, uint32_t size)
 {
     //printf("IN SYSREAD");
+    //printf("[fd is %d]",fd);
     if (fd < 0)
         return VFS_BAD_ARG_ERR;
     IN_LOCK

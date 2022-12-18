@@ -3,6 +3,7 @@
 #include"usyscall.h"
 #include"string.h"
 #include"stdlib.h"
+#include"fcntl.h"
 #include"conio.h"
 void printlogo()
 {
@@ -35,9 +36,11 @@ int main()
     int a;
     //asm volatile("int $0x80" : "=a" (a) : "a" (2), "b" ((int)4));
     char buf[20];
+    char buff[20];
     printf("hello printf![%d];",233);
     printf("hello printf![%c];\n",'a');
     memset(buf,20,0);
+    printf("doing cls...0x%x\n",clrscr);
     clrscr();
     printlogo();
     while (1)
@@ -47,11 +50,19 @@ int main()
         if(!strcmp(buf,"ver"))
         {
             printlogo();
-            printf("\n[QNKERNEL Ver 0.1.1U Alpha 11/17/22]\n");
+            printf("\n[QNKERNEL Ver 0.2.1U Alpha 12/18/22]\n");
         }
         else if(!strcmp(buf,"cls"))
         {
             clrscr();
+        }else if(!strcmp(buf,"test"))
+        {
+            int fd=open("/boot/setup.ini",O_RDONLY);
+            
+            strcpy(buff,"123");
+            printf("fd is%d content:%s\n",fd,buff);
+            int e=read(fd,buff,19);
+            printf("fd is%d content:%s error:%d\n",fd,buff,e);
         }
         else printf("\n[%s] <-- unknown command!\n",buf);
         //while(1);

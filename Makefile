@@ -18,6 +18,11 @@ iso: build/kernel.elf
 clean:
 	cd kernel && make clean
 	cd sys && make clean
-	rm build/kernel.elf
+	cd tools && make clean
+	cd lib && make clean
+	-rm isodir/boot/sys/*.*
+	-rm isodir/boot/kernel.bin
+	-rm build/kernel.elf
+	-rm qnos.iso
 count:
 	find . -name "*[.h|.c|.sh]"|xargs cat|grep -v ^$|wc -l

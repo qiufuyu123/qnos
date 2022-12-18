@@ -10,6 +10,7 @@
  */
 #ifndef _H_FS
 #define _H_FS
+#ifndef _USER_LIB
 #include"types.h"
 #include"mem/malloc.h"
 #include"list.h"
@@ -19,6 +20,7 @@ struct vfs_file;
 struct vfs_dentry;
 #define VFS_INODE_TYPE_FILE 0
 #define VFS_INODE_TYPE_DIR 1
+#endif
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
@@ -32,7 +34,7 @@ struct vfs_dentry;
 #define O_CREAT 1<<5
 #define O_EXCL 1<<6
 #define O_SYNC 1<<7
-
+#ifndef _USER_LIB
 enum
 {
     INODE_LSEEK_OFFSET_MODE,
@@ -194,4 +196,5 @@ int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);
 int sys_close(int fd);
 int kread_all(char *path,uint32_t *vaddr,int *pgnum);
+#endif
 #endif

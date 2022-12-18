@@ -4,7 +4,12 @@
 #include"types.h"
 #endif
 
-
+enum QNFileOperate
+{
+    FOP_OPEN,
+    FOP_READ,
+    FOP_CLOSE
+};
 enum QNSyscall
 {
     SYSCALL_NOP=0,
@@ -12,7 +17,7 @@ enum QNSyscall
     SYSCALL_EXIT,
     SYSCALL_GETCH,
     SYSCALL_GETS,
-    SYSCALL_READ,
+    SYSCALL_FOP,
     SYSCALL_CLRSCR,
     SYSCALL_NR
 };

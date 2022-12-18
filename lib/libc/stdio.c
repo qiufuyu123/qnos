@@ -349,10 +349,6 @@ int printf(char *str,...)
     __base_syscall(SYSCALL_PRINTF,buf,0,0,0);
     return val;
 }
-int read(int fd,char *buffer,int size)
-{
-    return __base_syscall(SYSCALL_READ,fd,buffer,size,0);
-}
 char getch()
 {
     return __base_syscall(SYSCALL_GETCH,0,0,0,0);

@@ -57,4 +57,5 @@ typedef struct alloced_page
 uint32_t vmm_buddy_alloc(uint32_t size);
 void vmm_buddy_free(uint32_t addr, uint32_t size);
 void init_vmm();
+void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr);
 #endif

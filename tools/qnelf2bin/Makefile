@@ -9,3 +9,6 @@ all: $(OBJS)
 	
 	$(CC) $(SRC) -o $(TOOL_NAME)
 	cp $(TOOL_NAME) ../toolchain
+clean:
+	-rm $(TOOL_NAME)
+	-rm ../toolchain/$(TOOL_NAME)

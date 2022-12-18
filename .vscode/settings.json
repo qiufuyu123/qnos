@@ -171,7 +171,9 @@
         "conio.h": "c",
         "unistd.h": "c",
         "getopt.h": "c",
-        "getopt_core.h": "c"
+        "getopt_core.h": "c",
+        "stdlib.h": "c",
+        "fcntl.h": "c"
     },
     
 }
