@@ -85,6 +85,10 @@ void syscall_cls()
     printf("in cls");
     Klogger->cls();
 }
+void sys_fork(int v1,int v2,int v3,int v4)
+{
+    return user_fork();
+}
 void init_syscall()
 {
     //if(syscall_handles)return;
@@ -97,5 +101,6 @@ void init_syscall()
     //syscall_handles[SYSCALL_READ]=syscall_read;
     syscall_handles[SYSCALL_GETS]=syscall_gets;
     syscall_handles[SYSCALL_FOP]=syscall_foperate;
+    syscall_handles[SYSCALL_FORK]=sys_fork;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

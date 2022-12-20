@@ -96,6 +96,25 @@ IRQ 13,45
 IRQ 14,46
 IRQ 15,47
 
+
+
+; NOTICE BY QIUFUYU
+; VERY IMPORTANT THIS FUNCTION BELOW!
+; PLEASE REMEMBER TO RESET ds,es,fs,gs registers!
+; Otherwise, when it returns to userland
+; It will be forbidden to some datas!
+[GLOBAL intr_exit]
+intr_exit:
+   ;pop ebx        ; reload the original data segment descriptor
+   mov ebx,[esp+16]
+   mov ds, bx
+   mov es, bx
+   mov fs, bx
+   mov gs, bx
+   ;pop eax
+   mov eax,0
+   ;sti     We dont need to sti here! Since iret will pop all eflags and eflags can control the interrupt
+   iret           
 [EXTERN irq_handler]
 
 ; This is our common IRQ stub. It saves the processor state, sets

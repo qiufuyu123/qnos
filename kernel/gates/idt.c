@@ -119,11 +119,14 @@ void irq_handler(registers_t regs)
       //if(regs.int_no!=32)printf("irq ok");
    }
 }
+bool is_hard_err=0;
 void isr_handler(registers_t regs)
 {
    //printf("intr num:%d\n",regs.int_no);
+   if(is_hard_err)return;
    if(regs.int_no==14)
    {
+      is_hard_err=1;
       uint32_t faulting_address;
       asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
 

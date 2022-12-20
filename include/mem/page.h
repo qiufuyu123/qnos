@@ -39,6 +39,7 @@ typedef struct page_directory
 extern page_directory_t kpdir;
 void init_page();
 page_directory_t *page_clone_cleaned_page();
+page_directory_t *page_clone_user_page(page_directory_t*updt,uint32_t from_vaddr);
 uint32_t page_kv2p(uint32_t va);
 //int alloc_page(page_t *p,bool is_kernel,bool writeable);
 void page_map_unset(uint32_t vaddr);

@@ -83,7 +83,7 @@ extern void switch_to(void * cur_context_ptr,void * next_context_ptr);    //ä½¿ç
 extern uint32_t get_esp();
 
 int kernel_fork();
-
+int user_fork();
 int schedule();
 
 void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint32_t addr,uint32_t page_counte,bool is_kern_thread,uint32_t pdt_vaddr,TCB_t*parent);

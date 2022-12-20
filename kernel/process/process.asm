@@ -10,8 +10,13 @@ get_eflags:
 	pushf
 	pop eax
 	ret
+[GLOBAL read_ret]
+read_ret:
+	mov eax,[ebp+4]
+	ret
 [GLOBAL switch_get]
 switch_get:
+
 	mov eax,[esp+4]     ;第一个参数 
 	mov [eax],ebp
 	mov [eax+4],ebx

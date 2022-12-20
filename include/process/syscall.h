@@ -19,6 +19,7 @@ enum QNSyscall
     SYSCALL_GETS,
     SYSCALL_FOP,
     SYSCALL_CLRSCR,
+    SYSCALL_FORK,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

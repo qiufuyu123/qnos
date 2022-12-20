@@ -1,4 +1,5 @@
 //#include"process/syscall.h"
+#include"unistd.h"
 #include"stdio.h"
 #include"usyscall.h"
 #include"string.h"
@@ -17,6 +18,12 @@ printf("$$ / \\$$ |$$ |$$$$ |$$ \\__$$ |/  \\__$$ |\n");
 printf("$$ $$ $$< $$ | $$$ |$$    $$/ $$    $$/ \n");
 printf(" $$$$$$  |$$/   $$/  $$$$$$/   $$$$$$/  \n");
 printf("     $$$/                               \n");
+}
+void testtt()
+{
+    char buff[100];
+    memset(buff,1,100);
+    __base_syscall(SYSCALL_PRINTF,"testtttt\n",0,0,0);
 }
 int main()
 {
@@ -50,7 +57,7 @@ int main()
         if(!strcmp(buf,"ver"))
         {
             printlogo();
-            printf("\n[QNKERNEL Ver 0.2.1U Alpha 12/18/22]\n");
+            printf("\n[QNKERNEL Ver 0.2.3U Alpha 12/20/22]\n");
         }
         else if(!strcmp(buf,"cls"))
         {
@@ -63,6 +70,20 @@ int main()
             printf("fd is%d content:%s\n",fd,buff);
             int e=read(fd,buff,19);
             printf("fd is%d content:%s error:%d\n",fd,buff,e);
+        }else if(!strcmp(buf,"test2"))
+        {
+            int r=fork();
+            //printf("fork ret:%d\n",r);
+            //__base_syscall(SYSCALL_PRINTF,"rrrrrr!\n",0,0,0);
+            //testtt();
+            if(r==0)
+            {
+                printf("[THIS IS CHILD!]\n");
+                while(1);
+            }else
+            {
+                printf("[THIS IS PARENT!]\n[CHILD IS %d]buf is 0x%x\n",r,buf);
+            }
         }
         else printf("\n[%s] <-- unknown command!\n",buf);
         //while(1);

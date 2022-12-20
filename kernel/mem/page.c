@@ -92,9 +92,11 @@ page_t *get_page_from_u_pdir(page_directory_t *pd,uint32_t vaddr)
     else
     {
         //TODO make a pte
+        printf("none page");
         pd->ptable[idx]=kmalloc_page(1);
-        memset(pd->ptable[idx],0,4096);
-        printf("[ALLOC A NEW PTE]\n");
+        printf("[ALLOC A NEW PTE] 0x%x\n",pd->ptable[idx]);
+        //memset(pd->ptable[idx],0,4096);
+        
         pd->ptable_dir[idx]=page_kv2p(pd->ptable[idx])|0x7;
         return &pd->ptable[idx]->pages[vaddr%1024];
     }
@@ -112,7 +114,7 @@ page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr)
     {
         //TODO make a pte
         pd->ptable[idx]=kmalloc_page(1);
-        memset(pd->ptable[idx],0,4096);
+        //memset(pd->ptable[idx],0,4096);
         printf("[ALLOC A NEW PTE]\n");
         pd->ptable_dir[idx]=(uint32_t)pd->ptable[idx]|0x7;
         return &pd->ptable[idx]->pages[vaddr%1024];
@@ -146,8 +148,11 @@ void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 }
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa)
 {
-    alloc_page_paddr(get_page_from_u_pdir(pdir,vaddr),0,1,pa);
-    //printf("set:0x%x;",vaddr);
+    printf("set:0x%x;",vaddr);
+    page_t*p=get_page_from_u_pdir(pdir,vaddr);
+    printf("page:0x%x\n",p);
+    alloc_page_paddr(p,0,1,pa);
+    
     //invlpg(vaddr);
 }
 void page_map_unset(uint32_t vaddr)
@@ -172,11 +177,15 @@ uint32_t page_kv2p(uint32_t va)
     page_t *p=get_page_from_pdir(&kpdir,va);
     if(p)return p->frame*0x1000;
     return 0;
+
 }
+
 page_directory_t *page_clone_cleaned_page()
 {
     page_directory_t *re=kmalloc_page(4);
+    
     if(!re)return NULL;
+    //memset(re,0,4096*4);
     re->ptable_dir=(uint32_t)re+4096*3;
     memcpy(&re->ptable[0],&kpdir.ptable[0],4096/4);
     
@@ -194,6 +203,46 @@ page_directory_t *page_clone_cleaned_page()
     //     /* code */
     // }
     
+    return re;
+}
+bool page_chk_user(page_directory_t*updt,uint32_t vaddr)
+{
+    vaddr/=4096;
+    int idx=vaddr/1024;
+    if(updt->ptable[idx])
+    {
+        if(updt->ptable[idx]->pages[vaddr%1024].present)return true;
+    }
+    return false;
+}
+page_directory_t *page_clone_user_page(page_directory_t*updt,uint32_t from_vaddr)
+{
+    char *buf=kmalloc_page(1);
+    if(!buf)
+    {
+        return NULL;
+    }
+    page_directory_t*re=page_clone_cleaned_page();
+    if(!re)
+    {
+        kfree_page(buf,1);
+        return NULL;
+    }
+    uint32_t pgnum=(0xfffff000-from_vaddr)/4096;
+    
+    for (int i = 0; i < pgnum; i++)
+    {
+        if(page_chk_user(updt,from_vaddr+i*4096))
+        {
+            //printf("[clone a user pte:0x%x]\n",from_vaddr+i*4096);
+            page_u_map_set(re,from_vaddr+i*4096);
+            switch_page_directory(updt);
+            memcpy(buf,from_vaddr+i*4096,4096);
+            switch_page_directory(re);
+            memcpy(from_vaddr+i*4096,buf,4096);
+        }
+    }
+    //page_setup_kernel_pdt();
     return re;
 }
 void init_page()

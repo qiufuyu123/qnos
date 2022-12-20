@@ -15,6 +15,7 @@
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
+#define __DEBUG_FILE_SYSTEM 0
 uint32_t main_esp;
 TCB_t main_TCB;    //内核主线程TCB
 TCB_t* cur_tcb;
@@ -87,7 +88,7 @@ void threads_init(){
 	_init_main_thread(&main_TCB);
 	cur_tcb = &main_TCB;
 	main_esp=kmalloc_page(6);
-	tss_update(main_esp+6*4096);
+	//tss_update(main_esp+6*4096);
 	printf("MAINESP%x\n",main_esp);
 	list_init(&dead_thread_list);
 	// for (int i = 0; i < 4; i++)
@@ -177,6 +178,75 @@ void switch_to_user_mode() {
                                                                                                               
 
 }
+/*
+[GLOBAL intr_exit]
+intr_exit:
+   ;pop ebx        ; reload the original data segment descriptor
+   ;mov ds, bx
+   ;mov es, bx
+   ;mov fs, bx
+   ;mov gs, bx
+   ;pop eax
+   sti
+   iret           ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP*/
+extern void intr_exit();
+// {
+	
+// 	register uint32_t* r_esp asm("esp");
+// 	uint32_t *v=0x3ffe2fff;
+// 	printf("INTR EXIT:\n esp:0x%x %x %x %x %x %x \n]",r_esp,*(r_esp),*(r_esp+4),*(r_esp+8),*(r_esp+12),*(r_esp+16));
+// 	printf("INTR EXIT:\n %x %x %x %x %x %x\n",*v,*(v-4),*(v-8),*(v-12),*(v-16),*(v-20));
+// 	sti();
+// 	asm volatile ("iret");
+// }
+
+int user_fork()
+{
+	//printf("f1");
+	if(get_running_progress()->is_kern_thread!=0)return -1;
+	cli();
+	TCB_t*old_tcb=get_running_progress();
+	TCB_t*new_tcb=kmalloc_page(1);
+	//printf("f2");
+	if(!new_tcb)
+	{
+		sti();
+		return -1;
+	}
+	memcpy(new_tcb,old_tcb,4096);
+	new_tcb->tid=thread_get_pid();
+	new_tcb->name=strsafecat(old_tcb->name,"_fork");
+	if(!new_tcb->name)
+	{
+		kfree_page(new_tcb,1);
+		sti();
+		return -1;
+	}
+	list_append(&old_tcb->child_thread_list,&new_tcb->child_tag);
+	new_tcb->parent_thread=old_tcb;
+	new_tcb->next=old_tcb->next;
+	old_tcb->next=new_tcb;
+	new_tcb->kern_user2kern_stack_top=new_tcb;
+	new_tcb->pdt_vaddr=page_clone_user_page(old_tcb->pdt_vaddr,0x80000000);
+	new_tcb->kern_stack_top=(uint32_t)new_tcb+4095;
+	new_tcb->context.ebp=new_tcb->kern_stack_top;
+	*(new_tcb->kern_stack_top-6)=intr_exit;
+	*(new_tcb->kern_stack_top-3)=0x202;
+	//*(new_tcb->kern_stack_top-6)=0;//ret value
+	new_tcb->context.esp=new_tcb->kern_stack_top-6;
+	//printhex((uint32_t)new_tcb+4095-20*4,20);
+	//*(uint32_t*)((uint32_t)new_tcb->context.ebp+4)=r;
+	//printf("fork newesp:0x%x newebp:0x%x\n",new_tcb->context.esp,new_tcb->context.ebp);
+	new_tcb->time_counter=0;
+	new_tcb->time_left=TIME_CONT;
+	new_tcb->task_status=TASK_READY;
+	//printf("forked name is %s\n",new_tcb->name);
+	//new_tcb->fork_mark=1;
+	//int e=0;
+	page_setup_pdt(old_tcb->pdt_vaddr);
+	sti();
+	return new_tcb->tid;
+}
 /**
  * @brief NOTICE 
  *  
@@ -251,11 +321,28 @@ int kernel_fork()
 	sti();
 	return new_tcb->tid;
 }
-
+int user_test2()
+{
+	char as[100];
+	memset(as,1,100);
+	return &as;
+}
 int _user_task_func(void *args)
 {
 	cli();//IMPORTANT!!!!!
 	printf("before switch! 0x%x",(uint32_t)args);
+	if(!args)
+	{
+		switch_to_user_mode();
+		int r=__base_syscall(SYSCALL_FORK,0,0,0,0);
+		if(r==0)
+		{
+			user_test2();
+		}else{
+			user_test2();
+		}
+		while(1);
+	}
 	void(*func)()=args;
 	func();
 	//switch_to_user_mode();
@@ -282,6 +369,7 @@ static inline void test_invlpg(void* m)
 }
 TCB_t *create_user_init_thread()
 {
+	#ifdef __DEBUG_FILE_SYSTEM
 	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
 	printf("fd is %d;",fd);
 	char *file_buf=kmalloc_page(3);
@@ -291,6 +379,7 @@ TCB_t *create_user_init_thread()
 	printf("file read ok!(%d bytes)",l);
 	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t));
 	printf("solve entry point 0x%x\n",func);
+	#endif
 	uint32_t TCB_page = kmalloc_page(1);
     if(TCB_page==0){
         printf("Can`t Create New User Task Because Of Error When Alloc TCB Page From Kernel VMM!STOP!");
@@ -309,14 +398,16 @@ TCB_t *create_user_init_thread()
 	//TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
 	TCB_t*new_tcb=TCB_page;
 	
-	new_tcb->kern_user2kern_stack_top=kmalloc_page(4);
-	tss_update(new_tcb->kern_user2kern_stack_top+4096*4);
+	new_tcb->kern_user2kern_stack_top=TCB_page;
+	tss_update(new_tcb->kern_user2kern_stack_top+4095);
 	if(!new_tcb->kern_user2kern_stack_top)
 	{
 		clean_up_dead(new_tcb);
 		return NULL;
 	}
+	#ifdef __DEBUG_FILE_SYSTEM
 	new_tcb->fd_list[0]=create_stdin_file();
+	#endif
 	//new_tcb->is_kern_thread=1;
 	new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
@@ -355,15 +446,21 @@ TCB_t *create_user_init_thread()
 	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80001000,page_kv2p(file_buf+4096));
 	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80002000,page_kv2p(file_buf+4096*2));
 	//
+	#ifdef __DEBUG_FILE_SYSTEM
 	vmm_remap_pages(new_tcb->pdt_vaddr,file_buf,3,0x80000000);
+	#endif
 	page_setup_pdt(new_tcb->pdt_vaddr);
+	#ifdef __DEBUG_FILE_SYSTEM
 	*(--new_tcb->kern_stack_top)=func;
+	#else
+	*(--new_tcb->kern_stack_top)=0;
+	#endif
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
 	//memcpy(0x80000000,file_buf,4096*3);
 	//kfree_page(file_buf,2);
-	printf("func execute address:0x%x %d",func,*(uint32_t*)0x80000000);
+	//printf("func execute address:0x%x %d",func,*(uint32_t*)0x80000000);
 	//page_setup_kernel_pdt();
 	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
 	//p->user=1;
@@ -503,6 +600,11 @@ int schedule(){
 	_schedule_next=&(next_tcb->context);
 	//switch_get(_schedule_now);
 	//active_task(next_tcb);
+	if(next_tcb->tid==4)
+	{
+		// printf("kernel stack addr:0x%x ebp:0x%x esp:0x%x\n",next_tcb+4095,next_tcb->context.ebp,next_tcb->context.esp);
+		// printhex((uint32_t)next_tcb+4095-20,5);
+	}
 	active_task(next_tcb);
 	//switch_with_pdt(_schedule_now,_schedule_next);
 	//active_task(next_tcb);

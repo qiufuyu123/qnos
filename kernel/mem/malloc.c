@@ -26,8 +26,9 @@ uint32_t kmalloc_page(uint32_t pnum)
     {
         page_map_set(addr+i*4096);
     }
-    //memset(addr,0,pnum*4096);
+    memset(addr,0,pnum*4096);
     //printf("mapped ok!");
+
     return addr;
 }
 void kfree_page(uint32_t vaddr,uint32_t pnum)

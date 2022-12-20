@@ -230,3 +230,11 @@ int32_t memcmp(const void *in1, const void *in2, uint32_t count) {
             return 1;
     return 0;
 }
+char *strsafecat(char *d,char *s)
+{
+	char *ret=kcalloc(strlen(d)+strlen(s)+1);
+	if(!ret)return NULL;
+	strcpy(ret,d);
+	strcat(ret,s);
+	return ret;
+}

@@ -84,6 +84,7 @@ char *strcat(char *d, const char *s)
 	return d;
 }
 
+
 const char *strchr(const char *s, char ch)
 {
 	while(*s) {

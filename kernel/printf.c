@@ -124,3 +124,13 @@ void printf(const char *s, ...)
 	va_end(args);
 	//lock_release(&print_lock);
 }
+void printhex(uint32_t *vaddr,uint32_t num)
+{
+	//uint32_t *ptr=vaddr;
+	printf("PRINT HEX:\n");
+	for (int i = 0; i < num; i++)
+	{
+		printf("%x ",*(vaddr+i));
+	}
+	printf("\n");
+}
