@@ -13,12 +13,14 @@
 #ifndef _USER_LIB
 #include"types.h"
 #include"mem/malloc.h"
+#include"hardware/devices.h"
 #include"list.h"
 struct vfs_super_block;
 struct vfs_file;
 #define inode_handle uint32_t
 struct vfs_dentry;
 #define VFS_INODE_TYPE_FILE 0
+#define VFS_INODE_VTYPE_DEV 1
 #define VFS_INODE_TYPE_DIR 1
 #endif
 #define SEEK_SET 0
@@ -34,6 +36,11 @@ struct vfs_dentry;
 #define O_CREAT 1<<5
 #define O_EXCL 1<<6
 #define O_SYNC 1<<7
+typedef struct 
+{
+    /* data */
+}udirent_;
+
 #ifndef _USER_LIB
 enum
 {
@@ -52,6 +59,8 @@ enum{
     VFS_PREMISSION_ERR,
     VFS_BAD_ARG_ERR
 };
+
+
 typedef struct vfs_dir_elem
 {
     char *name;
@@ -82,6 +91,12 @@ typedef struct vfs_dir_elem
      */
     list_elem_t list_tag;
 }vfs_dir_elem_t;
+typedef struct 
+{
+    vfs_dir_elem_t*root_enum_dir;
+    int enum_times;
+    vfs_dir_elem_t*current_enum_dir;
+}vfs_DIR_t;
 typedef struct vfs_dentry_ops
 {
     vfs_dir_elem_t* (*find_dentry)(struct vfs_dentry *dir,char *name);
@@ -106,6 +121,7 @@ typedef struct vfs_inode
     uint32_t refer_count;   //guess what
     uint32_t sync_mark;   
     uint32_t size_in_byte;
+    uint8_t v_type;
     uint8_t file_type;
     /**
      * @brief TODO
@@ -138,7 +154,7 @@ typedef struct vfs_dentry
 typedef struct vfs_sb_ops
 {
     char class_name[16];
-    int (*fs_mount)(struct vfs_super_block *sb);
+    int (*fs_mount)(struct vfs_super_block *sb,kdevice_t*dev);
     void (*fs_umount)(struct vfs_super_block *sb);
 }vfs_sb_ops_t;
 
@@ -155,6 +171,7 @@ typedef struct vfs_super_block
     list_t dentry_list;
     list_t inode_list;
     list_elem_t elem;
+    kdevice_t *dev;
 }vfs_super_block_t;
 
 typedef struct vfs_file_ops
@@ -169,12 +186,14 @@ typedef struct vfs_file_ops
 }vfs_file_ops_t;
 struct vfs_file
 {
+    //vfs_super_block_t*sb;
     vfs_dir_elem_t *content;
     vfs_file_ops_t *ops;
     uint32_t lseek;
     uint32_t open_flag;
     uint32_t owner_ptr;//record sth about who opened this file
 };
+extern inode_ops_t dev_ops;
 typedef struct vfs_file vfs_file_t;
 #define FS_MAX_NUM 4
 #define inode2ptr(inode) elem2entry(vfs_inode_t,inode_ptr,(inode));
@@ -187,11 +206,13 @@ vfs_inode_t* vfs_alloc_inode();
 vfs_dentry_t* vfs_alloc_dentry();
 vfs_dir_elem_t *vfs_alloc_delem();
 vfs_file_t*vfs_alloc_file();
-///void mount_root_sb();
 int init_vfs();
+void vfs_print_dir(char *path);
+vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void*elem);
 vfs_file_t *vfs_fopen(char *path,uint8_t flag);
 int sys_open(char *path,uint8_t flag);
 int sys_read(int fd,char *buffer,uint32_t size);
+int sys_write(int fd, char *buffer, uint32_t size);
 int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);
 int sys_close(int fd);

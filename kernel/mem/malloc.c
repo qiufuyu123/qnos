@@ -4,6 +4,8 @@
 #include"console.h"
 #include"mem/memorylayout.h"
 #include"string.h"
+#include"process/task.h"
+
 enum
 {
     KSLAB_8=1,
@@ -39,6 +41,16 @@ void kfree_page(uint32_t vaddr,uint32_t pnum)
         page_map_unset(vaddr+i*4096);
     }
 }
+// bool check_user_mem_buf(uint32_t vaddr,uint32_t szbit)
+// {
+//     TCB_t* now=get_running_progress();
+//     if(szbit<4096)return page_chk_user(now->pdt_vaddr,vaddr);
+//     for (int i = 0; i < ngx_align(szbit,4096)/4096; i++)
+//     {
+//         if(!page_chk_user(now->pdt_vaddr,vaddr+i*4096))return false;
+//     }
+//     return true;
+// }
 /**
  * @brief SLAB
  * 

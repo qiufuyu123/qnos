@@ -31,6 +31,7 @@ void active_task(TCB_t *task)
          * 
          */
         tss_update(task->kern_user2kern_stack_top+4095);
+        //printf("userswitch!");
         
     }
 }

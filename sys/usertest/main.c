@@ -42,7 +42,7 @@ int main()
     :::"ax");
     int a;
     //asm volatile("int $0x80" : "=a" (a) : "a" (2), "b" ((int)4));
-    char buf[20];
+    char buf[40];
     char buff[20];
     printf("hello printf![%d];",233);
     printf("hello printf![%c];\n",'a');
@@ -53,11 +53,11 @@ int main()
     while (1)
     {
         printf(">");
-        gets_s(buf,19);
+        gets_s(buf,39);
         if(!strcmp(buf,"ver"))
         {
             printlogo();
-            printf("\n[QNKERNEL Ver 0.2.3U Alpha 12/20/22]\n");
+            printf("\n[QNKERNEL Ver 0.3.3F Alpha 12/20/22]\n");
         }
         else if(!strcmp(buf,"cls"))
         {
@@ -84,10 +84,20 @@ int main()
             {
                 printf("[THIS IS PARENT!]\n[CHILD IS %d]buf is 0x%x\n",r,buf);
             }
+        }else if(!strcmp(buf,"ps"))
+        {
+            ps();
+        }
+        else if(!strncmp(buf,"ls",2))
+        {
+            ls_dir(buf+3);
+        }else if(!strncmp(buf,"exe",3))
+        {
+            exec(buf+4);
         }
         else printf("\n[%s] <-- unknown command!\n",buf);
         //while(1);
-        memset(buf,20,0);
+        memset(buf,40,0);
         /* code */
     }
     

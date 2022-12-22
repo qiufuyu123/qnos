@@ -23,8 +23,8 @@ align 4
     dd  0                   ;bss
     dd  0                   ;entry
     dd  0                   ;mode type
-    dd  1280                ;width
-    dd  1024                ;height
+    dd  800                ;width
+    dd  600                ;height
     dd  32                  ;depth
     resb 4*13
 extern kernelmain

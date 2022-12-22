@@ -20,6 +20,9 @@ enum QNSyscall
     SYSCALL_FOP,
     SYSCALL_CLRSCR,
     SYSCALL_FORK,
+    SYSCALL_TEST_LIST_DIR,
+    SYSCALL_EXEC,
+    SYSCALL_PS,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

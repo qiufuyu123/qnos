@@ -173,7 +173,13 @@
         "getopt.h": "c",
         "getopt_core.h": "c",
         "stdlib.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "dirent.h": "c",
+        "devices.h": "c",
+        "ramdisk.h": "c",
+        "ff.h": "c",
+        "diskio.h": "c",
+        "framebuffer.h": "c"
     },
     
 }

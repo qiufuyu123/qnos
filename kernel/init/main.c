@@ -6,9 +6,12 @@
 #include"console.h"
 #include"KMDK/KMDK.h"
 #include"string.h"
+#include"hardware/ramdisk.h"
+
 #include"gates/idt.h"
 #include"hardware/timer.h"
 #include"hardware/keyboard/keyboard.h"
+#include"hardware/devices.h"
 #include"mem/page.h"
 #include"mem/memorylayout.h"
 #include"mem/vmm.h"
@@ -46,10 +49,6 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 }
 void test_t1(void *args)
 {
-    /*for (int i = 0; i < 10000000; i++)
-    {
-        printf("1");
-    }*/
     #ifdef __DEBUG_FILE_SYSTEM
     int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
     if(fd<0)
@@ -61,22 +60,7 @@ void test_t1(void *args)
     sys_read(fd,buf,3);
     printf("t1:read 3 bytes from 0:%s",buf);
     #endif
-    // //while(1)printf("taskA!;");
-    // printf("acquiring lock...(T1);");
-    // lock_acquire(&test_lock);
-    // //get_tick();
-    // printf("get the lock!(T1);");
-    // //ksleep(10000*2);
-    // printf("ready to release!;");
-    // lock_release(&test_lock);
-    // printf("release the lock!(T1);");
-    // printf("T1 ready...;");
-    // lock_acquire(&test_lock);
-    // printf("T1 get lock!;");
     
-    // lock_release(&test_lock);
-    // printf("T1 release lock!;");
-    // printf("[%s];",get_running_progress()->name);
     while (1)
     {
         uint8_t c= keyboard_get_key();
@@ -106,68 +90,10 @@ void test_t2(void *args)
     printf("t2:read 3 bytes from 3:%s",buf);
     while(1);
     #endif
-    //     printf("acquiring lock...(T2);");
-    // lock_acquire(&test_lock);
-    // //get_tick();
-    // printf("get the lock!(T2);");
-    // ksleep(1000*2);
-    // //printf("ready to release;");
-    // lock_release(&test_lock);
-    // printf("release the lock!(T2);");
-    /*for (int i = 0; i < 10000000; i++)
-    {
-        printf("2");
-    }*/
-    /*printf("T2 ready...;");
-    lock_acquire(&test_lock);
-    printf("T2 get lock!;");
-    ksleep(2*1000);
-    lock_release(&test_lock);
-    printf("T2 release lock!;");
-    printf("[%s];",get_running_progress()->name);*/
-    
-    // int ret=kernel_fork();
-    // printf("ret from fork!;%d next:0x%x;",get_running_progress()->tid,test_t2);
-
-    // if(ret==0)
-    // {
-    //     printf("This is a forked thread!\n");
-    //     while (1)
-    //     {
-    //         /* code */
-    //     }
-    // }else
-    // {
-    //     printf("We fork a child thread:%d!\n",ret);
-    //     while (1)
-    //     {
-    //         /* code */
-    //     }
-        
-    // }
     while (1)
     {
         /* code */
     }
-    
-
-}
-int test_user_task(void *argv)
-{
-    //printf("USER MODE!");
-    int a=0;
-   
-    //asm volatile("int $0x80" : "=a" (a) : "0" (a), "b" ((int)t_m->user_main_thread), "c" ((int)a),"d"((int)a),"D"((int)a));
-    __base_syscall(0,1,2,3,4);
-    //t_m->user_main_thread(0,0);
-    
-    //test_func_call();
-    while (1)
-    {
-        /* code */
-    }
-    
-    return 114;
 }
 int kernelmain(uint32_t magic,uint32_t addr)
 {
@@ -181,44 +107,28 @@ int kernelmain(uint32_t magic,uint32_t addr)
     init_idt();
     init_serial();
     *((uint8_t*)VIDEO)='d';
-    //Klogger.putstr("hello log!\n");
     init_vga(mbi);
     printf("[framebuffer:0x%x w:%d h:%d]\n",mbi->framebuffer_addr,mbi->framebuffer_width,mbi->framebuffer_height);
-    //kstart=&kstart;
-    //kend=&kend;
     init_memorylayout((uint32_t)&kstart,(uint32_t)&kend,get_max_pm_addr(mbi)/1024);
-    //We set the value by its address because we prepare the addresses in linker.ld;
     printf("Kernel from 0x%x to 0x%x mem_size:0x%d bitmap:0x%x\n",kernel_mem_map.kstart,kernel_mem_map.kend,kernel_mem_map.total_mem_in_kb/1024,kernel_mem_map.phy_bitmap_addr);
-    //while(1);
-    //asm volatile ("int $0x1");
-    //asm volatile ("sti");
-    //asm volatile ("int $0x2");
     init_page();
     init_vmm();
     init_timer();
-    
-    /*uint32_t *t=kmalloc_page(1);
-    *t=114514;
-    printf("%d %x\n",*t,t);
-    kfree_page(t,1);*/
-    //*t=233;//page fault!
     init_kslab();
     init_kobject();
+    device_init();
     threads_init();
     keyboard_init();
-    //clock_init();
     lock_init(&test_lock);
-    //asm volatile("cli");//TODO: This code is necessary, but why?
-    
-    //create_thread(1,&test_t1,0,kmalloc_page(1),1,1,0);
-    //create_thread(2,&test_t2,0,kmalloc_page(1),1,1,0);
-    //init_ide();
     printf("stage 1!");
     asm volatile("sti");//TODO: This code is necessary, but why?
-    //while(1);
     #ifdef __DEBUG_FILE_SYSTEM
+    
     ide_initialize(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
     init_fslist();
+    
+    printf("\n\n");
+    vfs_print_dir("/dev/");
     #endif
     create_kern_thread("1",&test_t1,0);
     create_kern_thread("2",&test_t2,0);
@@ -327,11 +237,18 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //     //}
     // }
     //sti();
-
+    device_add(device_create_ramdisk(0));
     init_syscall();
-    printf("user adddress:0x%x;",test_user_task);
+    device_enum2();
+    printf("66666666666");
+    int fd=sys_open("/dev/ramdisk0",O_RDWR);
+    printf("openok");
+    if(fd>=0)
+    {
+        sys_write(fd,"hello mem",10);   
+    }
     ksleep(5000);
-    create_user_init_thread();
+    create_user_thread("/boot/sys/usertest.bin");
     //jump_usermode();
     //switch_to_user_mode();
     while(1)

@@ -55,7 +55,7 @@ uint32_t kmalloc(uint32_t size);
 uint32_t krealloc(uint32_t addr,uint32_t len);
 uint32_t kcalloc(uint32_t size);
 void kfree(uint32_t addr);
-
+//bool check_user_mem_buf(uint32_t vaddr,uint32_t szbit);
 slab_unit_t *alloc_slab_unit(uint32_t unit_size,char *name);
 uint32_t alloc_in_slab_unit(slab_unit_t* unit);
 void free_in_slab_unit(uint32_t vaddr);

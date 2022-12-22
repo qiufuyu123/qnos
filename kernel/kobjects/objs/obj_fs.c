@@ -18,6 +18,27 @@ slab_unit_t *dentry_slab;
 slab_unit_t *file_slab;
  list_t sb_list;
  vfs_super_block_t *root_sb;
+ int pub__travel_dir_find(list_elem_t*elem,char * arg)
+{
+    
+    vfs_dir_elem_t *n_dir_elem= elem2entry(vfs_dir_elem_t,list_tag,elem);
+    vfs_inode_t*inode=inode2ptr(n_dir_elem->file);
+    if(inode->magic_num!=INODE_MAGIC_NUM)
+    {
+        printf("[ISO] Bad magic num!\n");
+        return 0;
+        //return 1;
+    }
+    //printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
+    if(!strcmp(n_dir_elem->name,arg))return 1;
+    return 0;
+}
+vfs_dir_elem_t *pub_dentry_find(vfs_dentry_t *dir,char *name)
+{
+    list_elem_t *elem= list_traversal(&dir->file_elems,pub__travel_dir_find,name);
+    if(!elem)return 0;
+    return elem2entry(vfs_dir_elem_t,list_tag,elem);
+}
 //extern slab_unit_t *file_slab;
  vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
 vfs_inode_t *vfs_alloc_inode()
@@ -46,7 +67,7 @@ int mount_root_sb()
     root_sb->ops = fs_ops_list[0];
     list_init(&root_sb->inode_list);
     list_init(&root_sb->dentry_list);
-    return root_sb->ops->fs_mount(root_sb);
+    return root_sb->ops->fs_mount(root_sb,device_find("ata0"));
 }
 
 int init_vfs()
@@ -78,13 +99,17 @@ char *__travel_path(char *path, int *cnt, int len)
     // printf("cnt:%d;",*cnt);
     path = (char *)((uint32_t)path + *cnt);
     char *old_path = path;
-    // uint32_t len=strlen(path);
+    
     if (*cnt >= len)
+    {
         return __CHAR_NONE;
+    }
     while (1)
     {
         if (*cnt >= len)
+        {
             return old_path;
+        }
         if (*path == '/')
         {
 
@@ -93,6 +118,7 @@ char *__travel_path(char *path, int *cnt, int len)
             // printf("cnt:%d;",*cnt);
             if (*cnt == 1)
             {
+                
                 return __CHAR_ROOT;
             }
             return old_path;
@@ -123,7 +149,73 @@ vfs_dentry_t *__copy_dentry(vfs_dentry_t *parent)
     list_append(&sb->dentry_list, &dentry->dentry_elem);
     return dentry;
 }
-
+vfs_dentry_t* __search_dir(char *path)
+{
+    int t_cnt = 0;
+    int len = strlen(path);
+    uint8_t root_check = __travel_path(path, &t_cnt, len);
+    if (root_check != __CHAR_ROOT)
+    {
+        printf("[SEARCHDIR]Cant locate '/' in the path;%s",path);
+        return 0;
+    }
+    char *sub_path;
+    vfs_dentry_t *cur_entry = root_sb->root_dir;
+    vfs_dir_elem_t *d_elem;
+    while ((sub_path = __travel_path(path, &t_cnt, len)) != __CHAR_NONE)
+    {
+        if (!strcmp(sub_path, "."))
+        {
+        }
+        else if (!strcmp(sub_path, ".."))
+        {
+            cur_entry = cur_entry->parent_dir;
+        }
+        else
+        {
+            d_elem = pub_dentry_find(cur_entry, sub_path);
+            if (!d_elem)
+            {
+                printf("Cant find sub_dir(file):%s;", sub_path);
+                return 0;
+            }
+            int type = __get_inode_type(d_elem->file);
+            if (type == -1)
+            {
+                printf("Bad inode format!;");
+                return 0;
+            }
+            else if(type==VFS_INODE_TYPE_DIR)
+            {
+                // printf("%s is a dir:%x;",sub_path,d_elem->d_dir);
+                if (!d_elem->d_dir)
+                {
+                    d_elem->d_dir = __copy_dentry(cur_entry);
+                    if (!d_elem->d_dir)
+                    {
+                        printf("Cant copy dentry!;");
+                        return 0;
+                    }
+                    d_elem->d_dir->dir_file = d_elem->file;
+                    if(d_elem->d_dir->ops->load_inode_dirs)
+                    {
+                    if (d_elem->d_dir->ops->load_inode_dirs(d_elem->d_dir, d_elem->file) < 0)
+                    {
+                        printf("Cant load all d_elem!%s;", sub_path);
+                        return 0;
+                    }
+                    }
+                }
+                cur_entry = d_elem->d_dir;
+            }else
+            {
+                printf("NOT A DIRECTORY!");
+                return 0;
+            }
+        }
+    }
+    return cur_entry;
+}
 vfs_dir_elem_t *__search_file_elem(char *path)
 {
     int t_cnt = 0;
@@ -149,10 +241,10 @@ vfs_dir_elem_t *__search_file_elem(char *path)
         }
         else
         {
-            d_elem = cur_entry->ops->find_dentry(cur_entry, sub_path);
+            d_elem = pub_dentry_find(cur_entry, sub_path);
             if (!d_elem)
             {
-                printf("Cant find sub_dir(file):%s;", sub_path);
+                printf("Cant find sub_dir(file):%s %s;",path, sub_path);
                 return 0;
             }
             int type = __get_inode_type(d_elem->file);
@@ -174,7 +266,7 @@ vfs_dir_elem_t *__search_file_elem(char *path)
             }
             else
             {
-                // printf("%s is a dir:%x;",sub_path,d_elem->d_dir);
+                
                 if (!d_elem->d_dir)
                 {
                     d_elem->d_dir = __copy_dentry(cur_entry);
@@ -184,10 +276,13 @@ vfs_dir_elem_t *__search_file_elem(char *path)
                         return 0;
                     }
                     d_elem->d_dir->dir_file = d_elem->file;
+                    if(d_elem->d_dir->ops->load_inode_dirs)
+                    {
                     if (d_elem->d_dir->ops->load_inode_dirs(d_elem->d_dir, d_elem->file) < 0)
                     {
                         printf("Cant load all d_elem!%s;", sub_path);
                         return 0;
+                    }
                     }
                 }
                 cur_entry = d_elem->d_dir;
@@ -219,6 +314,7 @@ int vfs_fwrite(vfs_file_t *file, uint32_t size, uint32_t buffer)
         if (inode->magic_num != INODE_MAGIC_NUM)
             return VFS_FORMAT_ERR;
         inode->seek_offset=file->lseek;
+        printf("ipswrite:0x%x",inode->i_ops->fs_write);
         int r= inode->i_ops->fs_write(&inode->inode_ptr, size, buffer, 0);
         file->lseek=inode->seek_offset;
         return r;
@@ -232,6 +328,94 @@ int vfs_tell(vfs_file_t *file)
     //     return VFS_FORMAT_ERR;
     // return inode->seek_offset;
     return file->lseek;
+}
+int __travel_dir_print(list_elem_t*elem,char * arg)
+{
+    
+    vfs_dir_elem_t *n_dir_elem= elem2entry(vfs_dir_elem_t,list_tag,elem);
+    vfs_inode_t*inode=inode2ptr(n_dir_elem->file);
+    //printf("Ttt");
+    if(inode->magic_num!=INODE_MAGIC_NUM)
+    {
+        printf("[VFS] Bad magic num!\n");
+        return 0;
+        //return 1;
+    }
+    printf("Find a ");
+    if(inode->file_type==VFS_INODE_TYPE_DIR)Klogger->setcolor(0x000000,0x6495ED);
+    printf("%s",((char *[]){"file","dir"})[inode->file_type]);
+    Klogger->setcolor(0x000000,0xffffff);
+    printf(", name: ");
+    Klogger->setcolor(0x000000,0xffff00);
+    printf("%s",n_dir_elem->name);
+    Klogger->setcolor(0x000000,0xffffff);
+    printf(" max_byte:%d;\n",inode->size_in_byte);   
+    //if(!strcmp(n_dir_elem->name,arg))return 1;
+    return 0;
+}
+void vfs_print_dir(char *path)
+{
+char *old_path=strdup(path);
+    vfs_dentry_t*dir= __search_dir(old_path);
+    kfree(old_path);
+    if(!dir)return NULL;
+    //printf("pppppp");
+    list_traversal(&dir->file_elems,__travel_dir_print,0);
+}
+vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void* elem)
+{
+    char *old_path=strdup(root_path);
+    vfs_dentry_t*dir= __search_dir(old_path);
+    kfree(old_path);
+    if(!dir)return NULL;
+    char *name_buf=kmalloc(dir->name_len+1);
+    if(!name_buf)
+    {
+        return NULL;
+    }
+    memset(name_buf,0,dir->name_len+1);
+    strcpy(name_buf,name);
+    vfs_dir_elem_t *n_dir_elem=vfs_alloc_delem();
+    vfs_inode_t*pinode=inode2ptr(dir->dir_file);
+    if(pinode->magic_num!=INODE_MAGIC_NUM)
+    {
+        printf("PATH BROKEN!\n");
+        kfree(name_buf);
+        return NULL;
+    }
+    if(!n_dir_elem)
+    {
+        kfree(name_buf);
+        return NULL;
+    }
+    
+    n_dir_elem->name=name_buf;
+    n_dir_elem->ref_counter=0;
+    vfs_inode_t*inode=vfs_alloc_inode();
+    inode->file_type=elem?VFS_INODE_TYPE_FILE: VFS_INODE_TYPE_DIR;
+    inode->v_type=VFS_INODE_VTYPE_DEV;
+    inode->magic_num=INODE_MAGIC_NUM;
+    inode->sb=root_sb;
+    inode->inode_ptr=elem;
+    inode->i_ops=&dev_ops;
+    n_dir_elem->file=&inode->inode_ptr;
+    if(!elem)
+    {
+        n_dir_elem->d_dir=__copy_dentry(root_sb->root_dir);
+        if(n_dir_elem->d_dir)
+        {
+            n_dir_elem->d_dir->ops=0;
+            n_dir_elem->d_dir->dir_file=n_dir_elem->file;
+
+        }
+
+    }
+    
+    //n_dir_elem->d_dir
+    list_append(&pinode->sb->inode_list,&inode->inode_elem);
+    list_append(&dir->file_elems,&n_dir_elem->list_tag);
+    return n_dir_elem;
+
 }
 int vfs_lseek(vfs_file_t *file, uint32_t offset, uint32_t source)
 {
@@ -273,13 +457,15 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 {
     // int t;
     IN_LOCK
-    printf("vfs:%s",path);
+    //printf("vfs:%s",path);
+    printf("s0s0s0s0");
     vfs_dir_elem_t *d_elem = __search_file_elem(path);
     if (!d_elem)
     {
         OUT_LOCK
         return 0;
     }
+    printf("s1s1s1s1");
     // uint32_t reopen=__vfs_check_reopen(d_elem);
     // if (reopen)
     // {
@@ -410,6 +596,8 @@ int init_fslist()
     fs_ops_list[0] = iso_getops();
     mount_root_sb();
     list_append(&sb_list, &root_sb->elem);
+    vfs_mkvdir("/","dev",0);
+    vfs_print_dir("/");
     printf("test iso:\n");
     int fd = sys_open("/boot/grub/./../grub/grub.cfg", O_RDONLY);
     if (fd)

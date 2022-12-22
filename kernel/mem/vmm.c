@@ -268,14 +268,14 @@ void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t 
      vmm_buddy_free(vaddr_in_kernel,page_cnt);//free vmm information
     for (int i = 0; i < page_cnt; i++)
     {
-        printf("s1\n");
+        //printf("s1\n");
         uint32_t paddr= page_kv2p(vaddr_in_kernel+i*4096);
-        printf("s2\n");
+        //printf("s2\n");
         page_unlink_pa(vaddr_in_kernel+i*4096);//Unlink the mapping
-        printf("s3\n");
-        printf("map 0x%x --> 0x%x pdt is 0x%x\n",paddr,new_vaddr+i*4096,newpdt);
+        //printf("s3\n");
+        //printf("map 0x%x --> 0x%x pdt is 0x%x\n",paddr,new_vaddr+i*4096,newpdt);
         page_u_map_set_pa(newpdt,new_vaddr+i*4096,paddr);//rebuild mapping for user
-        printf("sn\n");
+        //printf("sn\n");
     }
    
     

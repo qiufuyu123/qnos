@@ -367,18 +367,48 @@ static inline void test_invlpg(void* m)
     /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */
     asm volatile ( "invlpg (%0)" : : "b"(m) : "memory" );
 }
-TCB_t *create_user_init_thread()
+char *look_for_filename(char *path)
+{
+	path+=strlen(path);
+	while (1)
+	{
+		path--;
+		if(*path=='/')
+		{
+			//printf("name is %s",path+1);
+			return path+1;
+		}
+
+	}
+	
+}
+void tast_ps()
+{
+	TCB_t* now=get_running_progress();
+	TCB_t* ori=now;
+	int i=0;
+	while (1)
+	{
+		Klogger->setcolor(0x000000,0xFF69B4);
+		printf("%d ",i);
+		Klogger->setcolor(0x000000,0xffffff);
+		printf("PID:%d Name:%s Level:%d State:%d\n",now->tid,now->name?now->name:"",now->is_kern_thread,now->task_status);
+		i++;
+		if(now->next==ori)break;
+		now=now->next;
+	}
+	
+}
+TCB_t *create_user_thread(char *path)
 {
 	#ifdef __DEBUG_FILE_SYSTEM
-	int fd= sys_open("/boot/sys/usertest.bin",O_RDONLY);
-	printf("fd is %d;",fd);
+	int fd= sys_open(path,O_RDONLY);
+	if(fd<0)return NULL;
 	char *file_buf=kmalloc_page(3);
 	sys_read(fd,file_buf,4096*3);
 	int l=sys_tell(fd);
-	//cli();
-	printf("file read ok!(%d bytes)",l);
+
 	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t));
-	printf("solve entry point 0x%x\n",func);
 	#endif
 	uint32_t TCB_page = kmalloc_page(1);
     if(TCB_page==0){
@@ -392,14 +422,14 @@ TCB_t *create_user_init_thread()
 		return 0;
 	}
 	cli();
-	create_thread("userinit",tid,_user_task_func,0,TCB_page,1,1,0,0);
+	create_thread(look_for_filename(path),tid,_user_task_func,0,TCB_page,1,1,0,0);
 
 
 	//TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
 	TCB_t*new_tcb=TCB_page;
 	
 	new_tcb->kern_user2kern_stack_top=TCB_page;
-	tss_update(new_tcb->kern_user2kern_stack_top+4095);
+	//tss_update(new_tcb->kern_user2kern_stack_top+4095);
 	if(!new_tcb->kern_user2kern_stack_top)
 	{
 		clean_up_dead(new_tcb);
@@ -407,19 +437,11 @@ TCB_t *create_user_init_thread()
 	}
 	#ifdef __DEBUG_FILE_SYSTEM
 	new_tcb->fd_list[0]=create_stdin_file();
+	//else new_tcb->fd_list[0]=get_running_progress()->fd_list[0];
 	#endif
 	//new_tcb->is_kern_thread=1;
 	new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
-	printf("in user new!\n");
-	printf("user pdt0x%x\n",new_tcb->pdt_vaddr);
-	//page_setup_pdt(new_tcb->pdt_vaddr);
-	
-	// page_u_map_set(new_tcb->pdt_vaddr,0x80000000);
-	// //test_invlpg(0x80000000);
-	// page_u_map_set(new_tcb->pdt_vaddr,0x80001000);//well 8kb is enough for our test!
-	// page_u_map_set(new_tcb->pdt_vaddr,0x80002000);
-	//test_invlpg(0x80001000);
 	new_tcb->kern_stack_top=0xFFFFe000;
 	page_u_map_set(new_tcb->pdt_vaddr,0xffff0000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
@@ -438,14 +460,6 @@ TCB_t *create_user_init_thread()
 	 * Instead,use get_page_from_u_pdir
 	 * Because get_page_from_pdir will flush pte_mapping information!
 	*/
-	//printf("STACK PHY ADDR:0x%x\n",get_page_from_pdir(new_tcb->pdt_vaddr,0xffffe000)->frame*0x1000);
-	
-	printf("set up to %x\n",new_tcb->pdt_vaddr);
-	//
-	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80000000,page_kv2p(file_buf));
-	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80001000,page_kv2p(file_buf+4096));
-	// page_u_map_set_pa(new_tcb->pdt_vaddr,0x80002000,page_kv2p(file_buf+4096*2));
-	//
 	#ifdef __DEBUG_FILE_SYSTEM
 	vmm_remap_pages(new_tcb->pdt_vaddr,file_buf,3,0x80000000);
 	#endif
@@ -458,16 +472,9 @@ TCB_t *create_user_init_thread()
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=_user_task_func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
-	//memcpy(0x80000000,file_buf,4096*3);
-	//kfree_page(file_buf,2);
-	//printf("func execute address:0x%x %d",func,*(uint32_t*)0x80000000);
-	//page_setup_kernel_pdt();
-	//page_t *p=get_page_from_pdir(new_tcb->pdt_vaddr,(uint32_t)_user_task_func&0xFFFFF000);
-	//p->user=1;
 	page_setup_kernel_pdt();
-	printf("STACK IN KERNEL 0x%x\n",page_kv2p(0xffffe000));
-	printf("prepare user addr ok!");
-	sti();
+sti();
+	schedule();
 	return new_tcb;
 }
 

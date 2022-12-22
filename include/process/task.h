@@ -91,7 +91,8 @@ void create_thread(char *name,uint32_t tid,thread_function *func,void *args,uint
 TCB_t* create_kern_thread(char *name,thread_function *func,void *args);
 
 void threads_init();    //线程模块初始化 需要把主线程加入运行表中
-TCB_t *create_user_init_thread();
+TCB_t *create_user_thread(char *path);
+void tast_ps();
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte);
 
 TCB_t* get_running_progress();

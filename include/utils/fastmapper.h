@@ -47,5 +47,6 @@ int fastmapper_add(fastmapper_t*map,uint32_t elem,uint32_t id);
 
 void fastmapper_remove(fastmapper_t*map,uint32_t id);
 
+void *fastmapper_find(fastmapper_t*map,void *expect,bool (*cmp)(void*value,void*expect));
 
 #endif

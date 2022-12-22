@@ -89,6 +89,19 @@ void sys_fork(int v1,int v2,int v3,int v4)
 {
     return user_fork();
 }
+void sys_ls(int v1,int v2,int v3,int v4)
+{
+    printf("Listing Dir:%s\n",v1);
+    vfs_print_dir(v1);
+}
+void sys_ps(int v1,int v2,int v3,int v4)
+{
+    tast_ps();
+}
+int sys_exec(int v1,int v2,int v3,int v4)
+{
+    return create_user_thread(v1);
+}
 void init_syscall()
 {
     //if(syscall_handles)return;
@@ -102,5 +115,8 @@ void init_syscall()
     syscall_handles[SYSCALL_GETS]=syscall_gets;
     syscall_handles[SYSCALL_FOP]=syscall_foperate;
     syscall_handles[SYSCALL_FORK]=sys_fork;
+    syscall_handles[SYSCALL_TEST_LIST_DIR]=sys_ls;
+    syscall_handles[SYSCALL_EXEC]=sys_exec;
+    syscall_handles[SYSCALL_PS]=sys_ps;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

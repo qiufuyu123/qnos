@@ -5,7 +5,6 @@
 #include"string.h"
 #include"mem/memorylayout.h"
 #include"console.h"
-kobject_operations_t *ata_dev;
 slab_unit_t *iso_inode_info_slab;
 #define SEARCH_SECTOR_NUM 20
 #define alloc_iso_inode_info alloc_in_slab_unit(iso_inode_info_slab)
@@ -13,14 +12,14 @@ inode_handle iso_get_inode(uint32_t lba);
 iso_volumn_group_t* detect_for_volumns(vfs_super_block_t *sb)
 {
     // I. Polling (idk if this word is right here...) For the volums 
-    ata_dev->open(sb->disk_id,0);
+    //ata_dev->open(sb->disk_id,0);
     
     iso_volumn_group_t *ret=kmalloc(sizeof(iso_volumn_group_t));
     if(!ret)return NULL;
     for (int i = 0; i <3 ; i++)
     {
         iso_volumn_symbol_t *buf=kmalloc(2048);
-        ata_dev->read(0x10+i,buf,1,0);
+        sb->dev->read(sb->dev,0x10+i,1,buf,0);
         //char *test=buf;
         //printf("\n===>\n");
         //for (int i = 0; i < 100; i++)
@@ -125,7 +124,7 @@ int iso_inode_read(inode_handle file,uint32_t size,uint8_t *buffer,uint32_t flag
     uint32_t pg_cnt=ngx_align(size+offset_in_byte+phy_info->base_offset,4096)/4096;
     char *buf_page=kmalloc_page(pg_cnt);
     //printf("II:Prepare page buf; %d %d %d %d s:%d",offset_in_sect,offset_in_byte,phy_info->base_offset,phy_info->phy_lba,size);
-    ata_dev->read(phy_info->phy_lba+offset_in_sect,buf_page,ngx_align(size+offset_in_byte+phy_info->base_offset,2048)/2048,0);
+    inode->sb->dev->read(inode->sb->dev,phy_info->phy_lba+offset_in_sect,ngx_align(size+offset_in_byte+phy_info->base_offset,2048)/2048,buf_page,0);
     //while(1);
     //printf("III:read ok!");
     memcpy(buffer,(uint32_t)buf_page+offset_in_byte+phy_info->base_offset,size);
@@ -322,15 +321,21 @@ void iso_init_phy(iso_inode_info_t *info,uint32_t lba,uint32_t offset)
     info->phy_lba=lba;
     info->base_offset=offset;   
 }
-int iso_mount(vfs_super_block_t*sb)
+int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
 {
+    if(!dev)
+    {
+        printf("CANNOT FIND SUITABLE HARDWARE DISK FOR ISO MOUNTING...\nABORT!\n");
+        while(1);
+    }
+    sb->dev=dev;
     if(!iso_inode_info_slab)
     {
         iso_inode_info_slab=alloc_slab_unit(sizeof(iso_inode_info_t),"iso_inode_info");
         if(!iso_inode_info_slab)return VFS_ALLOC_ERR;
     }
     printf("Mounting iso fs\n");
-    ata_dev=kobject_get_ops(KO_ATA_DEV);
+    //ata_dev=kobject_get_ops(KO_ATA_DEV);
     iso_volumn_group_t *volumn_info=detect_for_volumns(sb);
     if(!volumn_info)
     {

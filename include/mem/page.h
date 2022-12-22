@@ -51,5 +51,6 @@ void page_u_map_set(page_directory_t*pdir,uint32_t vaddr);
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa);
 void page_setup_pdt(page_directory_t*p);
 void page_setup_kernel_pdt();
+bool page_chk_user(page_directory_t*updt,uint32_t vaddr);
 void page_free_pdt(page_directory_t *p);
 #endif

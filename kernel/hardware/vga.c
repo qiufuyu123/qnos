@@ -2,6 +2,7 @@
 #include"hardware/vga.h"
 #include"console.h"
 #include"boot/multiboot.h"
+#include"mem/memorylayout.h"
 /**
  * @brief NOTE
  * Anyway....
@@ -281,7 +282,7 @@ uint32_t cur_x,cur_y;
 uint32_t vga_width,vga_height;
 uint32_t* vga_buffer;
 uint32_t* vga_screen;
-
+int vbg=0x000000,vfg=0xffffff;
 void vga_put_pixel(uint32_t x,uint32_t y,uint32_t color)
 {
     if (vga_width <= x ||  vga_height <= y)
@@ -309,10 +310,10 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
             for (int xx = 7; xx >= 0; xx-- ) {
                 // test if a pixel is drawn here
                 if ((bCh >> px++) & 1) {
-                    vga_buffer[i] = color;
+                    vga_buffer[i] = vfg;
                 }else
                 {
-                    vga_buffer[i]=0x00000000;
+                    vga_buffer[i]=vbg;
                 }
                 i++;
             }
@@ -329,8 +330,8 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
                 if ((bCh >> px++) & 1) {
                     // test if the pixel will be off screen
                     if (xpos > 0 && xpos < vga_width && yy+y > 0 && yy+y < vga_height)
-                        vga_buffer[ i + xpos] = color;
-                }else vga_buffer[i]=0x00000000;
+                        vga_buffer[ i + xpos] = vfg;
+                }else vga_buffer[i]=vbg;
                 xpos++;
             }
         } 
@@ -395,6 +396,11 @@ void vga_updata()
 {
     vga_buffer=vga_screen=Klogger->frame_buffer;
 }
+void vga_setcolor(int bbg,int ffg)
+{
+    vbg=bbg;
+    vfg=ffg;
+}
 kconsole_t vga_console={
     .cls=vga_cls,
     .id=1,
@@ -402,7 +408,7 @@ kconsole_t vga_console={
     .pause=0,
     .putchr=vga_gen_puchar,
     .putstr=vga_printstr,
-    .setcolor=0,
+    .setcolor=vga_setcolor,
     .setcurse=0,
     .update=vga_updata
 };
@@ -420,9 +426,10 @@ void init_vga(multiboot_info_t *mbi)
     //max_text_y=vga_height/8;
     cur_x=cur_y=0;
     vga_console.frame_buffer=vga_buffer;
-    vga_console.page_cnt=vga_width*vga_height*4/4096;
+    vga_console.page_cnt=ngx_align(vga_width*vga_height*4,4096)/4096;
     Klogger=&vga_console;
-    init_printlock();
+    //init_printlock();
+    printf("[VGA WIDTH:%d HEIGHT:%d PGNUM:%d]\n",vga_width,vga_height,vga_console.page_cnt);
     //vga_gen_puchar('h');
     //vga_gen_puchar('e');
     //vga_printstr("hello vga!\n");

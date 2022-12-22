@@ -4,7 +4,7 @@
 #include"gates/irq.h"
 #include"hardware/timer.h"
 #include"console.h"
-
+#include"hardware/devices.h"
 volatile unsigned static char ide_irq_invoked = 0;
 unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 struct IdeIdentifyInfo {
@@ -886,6 +886,14 @@ int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int l
       return ide_print_error(drive, err);
    }
 }  
+int ide_dev_read(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
+{
+   if(self->type==KDEV_ATAPI)return ide_read_sectors(self->dev_id,num,addr,buffer);
+}
+int ide_dev_write(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
+{
+   //if(self->type==KDEV_ATAPI)return ide_atapi_read(self->dev_id,addr,num,buffer);
+}
 void ide_initialize(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3,
 unsigned int BAR4) {
  
@@ -1056,12 +1064,16 @@ unsigned int BAR4) {
             (const char *[]){"ATA", "ATAPI"}[ide_devices[i].Type],         /* Type */
             ide_devices[i].MaxLBA*ide_devices[i].UnitSize ,               /* Size */
             ide_devices[i].Model);
-         // char *buf=kmalloc(2048);
-         // ide_read_sectors(0,1,0,buf);
-         // for (int i = 0; i < 2048; i++)
-         // {
-         //    if(buf[i]>=32)printf("%c",buf[i]);
-         // }
+         char buf[20]={0};
+         sprintf(buf,"ata%d",i);
+         if(ide_devices[i].Type)
+         {
+            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATAPI,i,0,2048,ide_dev_read,ide_dev_write,0,0));
+            //printf("[ATA DEVICE SEARCH:%s]",device_find("ata1")->name);
+         }else
+         {
+            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATA,i,0,2048,ide_dev_read,ide_dev_write,0,0));
+         }
          
       }
 }

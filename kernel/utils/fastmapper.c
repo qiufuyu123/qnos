@@ -133,4 +133,40 @@ int fastmapper_add(fastmapper_t*map,uint32_t elem,uint32_t id)
         list_append(&map->karray_list,&n_array->next_tag);
         return 1;
     }
+    
+}
+typedef struct 
+{
+    bool (*cmp)(void*value,void*expect);
+    void *expect;
+    int id;
+}__fastmapp_arg;
+
+int __fast_travel_find(list_elem_t *e,__fastmapp_arg *arg)
+{
+    karray_t*cur_array=elem2entry(karray_t,next_tag, e);
+    for (int i = 0; i <cur_array->id_end-cur_array->id_start; i++)
+    {
+        if(arg->cmp(cur_array->elems[i],arg->expect))
+        {
+            arg->id=i;
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+void *fastmapper_find(fastmapper_t*map,void *expect,bool (*cmp)(void*value,void*expect))
+{
+    if(!map)return 0;
+    if(list_empty(&map->karray_list))return 0;
+    __fastmapp_arg arg;
+    arg.cmp=cmp;
+    arg.expect=expect;
+    arg.id=-1;
+    list_elem_t*r= list_traversal(&map->karray_list,__fast_travel_find,&arg);
+    if(!r)return NULL;
+    karray_t*cur_array=elem2entry(karray_t,next_tag, r);
+    if(arg.id==-1)return NULL;
+    return cur_array->elems[arg.id];
 }
