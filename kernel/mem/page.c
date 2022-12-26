@@ -28,7 +28,7 @@ int alloc_page(page_t *p,bool is_kernel,bool writeable)
     if(!p)return-1;
     if(p->frame!=0)
     {
-        printf("alloced?%x",*(uint32_t*)p);
+        printf("[WARNING THIS PAGE MAY BE ALLOCED?%x]",*(uint32_t*)p);
         return 0;//already alloced
     }else
     {
@@ -68,14 +68,14 @@ bool free_page(page_t *p)
     if(p->frame==0)return true;
     else
     {
-        printf("freeing 0x%x",p->frame);
+        //printf("freeing 0x%x",p->frame);
         pmm_free_page(p->frame*0x1000);
         p->present=0;
         p->frame=0;
         //  |
         //  v   We dont need to reflush the whole dir
         //switch_page_directory(&kpdir);
-        printf("[%x]",*p);
+        //printf("[%x]",*p);
         
         return true;
     }
@@ -92,9 +92,9 @@ page_t *get_page_from_u_pdir(page_directory_t *pd,uint32_t vaddr)
     else
     {
         //TODO make a pte
-        printf("none page");
+        //printf("none page");
         pd->ptable[idx]=kmalloc_page(1);
-        printf("[ALLOC A NEW PTE] 0x%x\n",pd->ptable[idx]);
+        //printf("[ALLOC A NEW PTE] 0x%x\n",pd->ptable[idx]);
         //memset(pd->ptable[idx],0,4096);
         
         pd->ptable_dir[idx]=page_kv2p(pd->ptable[idx])|0x7;
@@ -115,10 +115,16 @@ page_t *get_page_from_pdir(page_directory_t *pd,uint32_t vaddr)
         //TODO make a pte
         pd->ptable[idx]=kmalloc_page(1);
         //memset(pd->ptable[idx],0,4096);
-        printf("[ALLOC A NEW PTE]\n");
+        //printf("[ALLOC A NEW PTE]\n");
         pd->ptable_dir[idx]=(uint32_t)pd->ptable[idx]|0x7;
         return &pd->ptable[idx]->pages[vaddr%1024];
     }
+}
+void page_unlink_user(page_directory_t*pdt, uint32_t vaddr)
+{
+    page_t*p= get_page_from_u_pdir(pdt,vaddr);
+    p->present=0;
+    p->frame=0;
 }
 void page_unlink_pa(uint32_t vaddr)
 {
@@ -137,8 +143,7 @@ void page_set_WR(page_directory_t *pdir,uint32_t vaddr,uint8_t value)
 }
 void page_u_map_unset(page_directory_t*pdir, uint32_t vaddr)
 {
-    free_page(get_page_from_pdir(pdir,vaddr));
-    //invlpg(vaddr);
+    free_page(get_page_from_u_pdir(pdir,vaddr));
 }
 void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 {
@@ -148,9 +153,9 @@ void page_u_map_set(page_directory_t*pdir,uint32_t vaddr)
 }
 void page_u_map_set_pa(page_directory_t*pdir,uint32_t vaddr,uint32_t pa)
 {
-    printf("set:0x%x;",vaddr);
+    //printf("set:0x%x;",vaddr);
     page_t*p=get_page_from_u_pdir(pdir,vaddr);
-    printf("page:0x%x\n",p);
+   //printf("page:0x%x\n",p);
     alloc_page_paddr(p,0,1,pa);
     
     //invlpg(vaddr);
@@ -197,7 +202,7 @@ page_directory_t *page_clone_cleaned_page()
     
     //uint32_t aed_adr=ngx_align((uint32_t)re->ptable_dir,4096);
     re->cr0_paddr=page_kv2p(re->ptable_dir);
-    printf("clone a kernel pdt(%x) : 0x%x -->0x%x;",(uint32_t)re+4096*3, re->ptable_dir,re->cr0_paddr);
+    //printf("clone a kernel pdt(%x) : 0x%x -->0x%x;",(uint32_t)re+4096*3, re->ptable_dir,re->cr0_paddr);
     // while (1)
     // {
     //     /* code */

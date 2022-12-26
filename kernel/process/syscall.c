@@ -5,6 +5,8 @@
 #include"gates/isr.h"
 #include"console.h"
 #include"hardware/keyboard/keyboard.h"
+#include"mem/memorylayout.h"
+#include"mem/page.h"
 int *syscall_handles=0;
 
 int syscall_nop(int v1,int v2,int v3,int v4)
@@ -50,6 +52,7 @@ int syscall_exit(int v1)
 }
 int syscall_foperate(int v1,int v2,int v3,int v4)
 {
+    syscall_extra_args*arg=v4;
     if(v1==FOP_OPEN)
     {
         //printf("[SYSCALL OPEN:%s]",v2);
@@ -57,6 +60,7 @@ int syscall_foperate(int v1,int v2,int v3,int v4)
     }
     else if(v1==FOP_READ)return sys_read(v2,v3,v4);
     else if(v1==FOP_CLOSE)return sys_close(v1);
+    else if(v1==FOP_MMAP)return sys_mmap(v2,v3,arg->v1,arg->v2,arg->v3);
 }
 
 int syscall_gets(char *buf,int size,int v3,int v4)
@@ -96,11 +100,24 @@ void sys_ls(int v1,int v2,int v3,int v4)
 }
 void sys_ps(int v1,int v2,int v3,int v4)
 {
-    tast_ps();
+    task_ps();
 }
 int sys_exec(int v1,int v2,int v3,int v4)
 {
-    return create_user_thread(v1);
+    return user_exec(v1);
+}
+int sys_sleep(int v1,int v2,int v3,int v4)
+{
+    user_sleep(v1);
+}
+int sys_meminfo(int *v1,int *v2,int v3,int v4)
+{
+    *v1=pmm_get_used();
+    *v2=kernel_mem_map.total_mem_in_kb;
+}
+int sys_wait(int v1,int v2,int v3,int v4)
+{
+    user_wait();
 }
 void init_syscall()
 {
@@ -118,5 +135,8 @@ void init_syscall()
     syscall_handles[SYSCALL_TEST_LIST_DIR]=sys_ls;
     syscall_handles[SYSCALL_EXEC]=sys_exec;
     syscall_handles[SYSCALL_PS]=sys_ps;
+    syscall_handles[SYSCALL_SLEEP]=sys_sleep;
+    syscall_handles[SYSCALL_MEMINFO]=sys_meminfo;
+    syscall_handles[SYSCALL_WAIT]=sys_wait;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

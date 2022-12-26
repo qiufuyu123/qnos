@@ -20,6 +20,10 @@ int ram_write(kdevice_t*self,uint32_t addr,uint32_t nums,char *buffer,int flag)
     }
     return nums;
 }
+kdevice_ops_t ram_ops={
+    .read=ram_read,
+    .write=ram_write
+};
 kdevice_t* device_create_ramdisk(int id)
 {
     uint32_t num_need=ngx_align(RAMDISK_SIZE,4096)/4096;
@@ -27,5 +31,5 @@ kdevice_t* device_create_ramdisk(int id)
     if(!buffer)return 0;
     char buf[20]={0};
     sprintf(buf,"ramdisk%d",id);
-    return device_create(buf,KDEV_BLOCK,KDEV_RAMDISK,id,0,512,ram_read,ram_write,buffer,num_need);
+    return device_create(buf,KDEV_BLOCK,KDEV_RAMDISK,id,0,512,&ram_ops,buffer,num_need);
 }

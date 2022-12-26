@@ -9,18 +9,26 @@ int dev_read(inode_handle file,uint32_t size,void* buffer, uint32_t flag)
     if(!file)return -1;
     kdevice_t* dev=(kdevice_t*)(*((uint32_t*)file));
     vfs_inode_t*n=inode2ptr(file);
-    return dev->read(dev,n->seek_offset,size,buffer,flag);
+    return dev->ops->read(dev,n->seek_offset,size,buffer,flag);
 }
 int dev_write(inode_handle file,uint32_t size,void* buffer, uint32_t flag)
 {
     if(!file)return -1;
     kdevice_t* dev=(kdevice_t*)(*((uint32_t*)file));
     vfs_inode_t*n=inode2ptr(file);
-    return dev->write(dev,n->seek_offset,size,buffer,flag);
+    return dev->ops->write(dev,n->seek_offset,size,buffer,flag);
+}
+int dev_mmap(inode_handle file, void*starts,uint32_t length,int offset,int flag)
+{
+    if(!file)return -1;
+    kdevice_t* dev=(kdevice_t*)(*((uint32_t*)file));
+    vfs_inode_t*n=inode2ptr(file);
+    return dev->ops->mmap(dev,starts,length,offset,flag);
 }
 inode_ops_t dev_ops={
     .fs_read=dev_read,
-    .fs_write=dev_write
+    .fs_write=dev_write,
+    .fs_mmap=dev_mmap
 };
 int device_init()
 {
@@ -31,7 +39,7 @@ int device_init()
     
 }
 kdevice_t *device_create(char *name,char root_type,char type,int dev_id,kobject_t*hardware,uint32_t usize,
-    int *read,int *write,
+    kdevice_ops_t*ops,
     char *data,uint32_t extra_data_sz)
 {
     kdevice_t* re=alloc_in_slab_unit(kdev_slab);
@@ -44,8 +52,7 @@ kdevice_t *device_create(char *name,char root_type,char type,int dev_id,kobject_
     re->root_type=root_type;
     re->type=type;
     re->unit_size=usize;
-    re->read=read;
-    re->write=write;
+    re->ops=ops;
     return re;
 }
 void device_enum2()

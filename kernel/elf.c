@@ -1,156 +1,11 @@
-// #include"kelf.h"
-// #include"string.h"
-// #include"process/symbol.h"
-// #include"console.h"
-// size_t elf_memory_size(const uint8_t * elfdata, size_t elflen){
-//     elf_header_t* h = (elf_header_t*)elfdata;
-//     elf_program_t* ph;
-//     size_t i;
-//     size_t vstart = (size_t)-1; //最小虚拟内存地址 
-//     size_t vend = 0;  //最大虚拟内存地址 
-//     size_t curvend;
-//     ph = (elf_program_t*)(elfdata + h->phoffset);
-//     for(i = 0; i < h->phnum; i++){
-//         if(ph->type == ELF_PROGRAM_TYPE_LOAD){
-//             if(ph->vaddress < vstart) vstart = ph->vaddress /* & ALIGN_VADDR*/;
-//             curvend = ph->vaddress + ph->memory_size;
-//             if(curvend > vend) vend = curvend;
-//         }
-//         ph ++; 
-//     }
-//     printf("calced vstart: %d vend: %d\n", (void*)vstart,  (void*)vend);
-//     if(vstart > vend)return 0;    
-//     return vend - vstart + sizeof(elf_module);
-// }
-
-
-// uint32_t elf_get_entry(void *address) {
-//     struct elf_header *header = get_header(address);
-
-//     if (!header)
-//         return 0;
-
-//     return (uint32_t) header->entry;
-// }
-
-// uint32_t elf_get_virtual(void *address) {
-//     struct elf_program *pheader;
-//     struct elf_header *header = get_header(address);
-
-//     if (!header)
-//         return 0;
-
-//     pheader = (struct elf_program *)((uint32_t) address + header->phoffset);
-
-//     return (uint32_t) pheader->vaddress;
-// }
-
-// uint32_t elf_get_symbol(void *address, const int8_t *name) {
-//     struct elf_section *sheader, *relHeader, *symHeader;
-//     struct elf_symbol *symTable, *symEntry;
-//     int8_t *infoTable, *strTable;
-//     uint32_t i, count;
-//     struct elf_header *header = get_header(address);
-
-//     if (!header)
-//         return 0;
-
-//     sheader = (struct elf_section_header *)((uint32_t) address + header->shoffset);
-//     relHeader = &sheader[2];
-//     symHeader = &sheader[relHeader->link];
-
-//     symTable = (struct elf_symbol *)((uint32_t) address + symHeader->offset);
-//     infoTable = (int8_t *)address + sheader[relHeader->info].offset;
-//     strTable =  (int8_t *)address + sheader[symHeader->link].offset;
-
-//     count = symHeader->size / symHeader->esize;
-
-//     for (i = 0; i < count; i++) {
-//         symEntry = &symTable[i];
-//         //("sym:%s;",strTable+symEntry->name);
-//         if (!memcmp(name, strTable + symEntry->name, strlen(name)))
-//             return (uint32_t)(infoTable + symEntry->value);
-//     }
-
-//     return 0;
-// }
-
-// void elf_prepare(void *address) {
-//     uint32_t i;
-//     struct elf_section*sheader;
-//     struct elf_header *header = get_header(address);
-
-//     if (!header)
-//         return;
-
-//     sheader = (struct elf_section *)((uint32_t) address + header->shoffset);
-
-//     for (i = 0; i < header->shcount; i++)
-//         if (sheader[i].type == 8)
-//             memclr((int8_t *)address + sheader[i].offset, sheader[i].size);
-// }
-
-// int elf_relocate(void *address) {
-//     struct elf_section *sheader, *relHeader, *symHeader;
-//     struct elf_relocate *relTable, *relEntry;
-//     struct elf_symbol *symTable, *symEntry;
-//     int8_t *infoTable, *strTable;
-//     uint32_t i, count, *entry, value, addend;
-//     uint8_t type, index;
-//     struct elf_header *header = get_header(address);
-
-//     if (!header){
-//         //("bad elf header!;");
-//         return -1;
-//     }
-//     //("a");
-//     sheader = (struct elf_section *)((uint32_t) address + header->shoffset);
-//     relHeader = &sheader[5];
-//     symHeader = &sheader[relHeader->link];
-//     //("a2");
-//     relTable = (struct elf_relocate *)((uint32_t) address + relHeader->offset);
-//     symTable = (struct elf_symbol *)((uint32_t) address + symHeader->offset);
-//     infoTable = (int8_t *)address + sheader[relHeader->info].offset;
-//     strTable =  (int8_t *)address + sheader[symHeader->link].offset;
-//     //("a3 %d / %d",relHeader->size,relHeader->esize);
-//     count = relHeader->size / relHeader->esize;
-//     //("a4");
-//     ////("b%d;",count);
-//     //("a5");
-//     for (i = 0; i < count; i++) {
-//         relEntry = &relTable[i];
-
-//         type =  relEntry->info & 0x0F;
-//         index = relEntry->info >> 8;
-
-//         symEntry = &symTable[index];
-//         entry = (uint32_t *)(infoTable + relEntry->offset);
-//         value = *entry;
-//         printf("try to relocate:%s;",strTable + symEntry->name);
-//         addend = (symEntry->shindex) ? (uint32_t) address + sheader[symEntry->shindex].offset + symEntry->value : symbol_find(strTable + symEntry->name);
-
-//         switch (type) {
-//             case 1:
-//                 *entry = value + addend;
-//                 break;
-//             case 2:
-//                 *entry = value + addend - (uint32_t) entry;
-//                 break;
-//             default:
-//                 printf("unknow:%d;%s",strTable + symEntry->name);
-//                 break;
-//         }
-//     }
-//     //elf_relocate_rodata(address,5);
-//     //elf_relocate_rodata(address,7);
-//     return 0;
-// }
 #include"mem/memorylayout.h"
 #include "kelf.h"
 #include "console.h"
 #include "string.h"
 #include"process/symbol.h"
 #include"mem/malloc.h"
+#include"kobjects/obj_vfs.h"
+#include"mem/page.h"
 #if 0
 #define DEBUG_PRINTF(...) printf(__VA_ARGS__)
 #else
@@ -254,7 +109,7 @@ int elf_relocate(elf_section_header *rel,char *address,uint32_t new_base)
         switch (type) {
             case 1:
                 *entry = value + addend;
-                printf("old%x->new%x;",value,*entry);
+                //printf("old%x->new%x;",value,*entry);
                 break;
             case 2:
                 //printf("S:%x A:%d P:%x;",S,value,addend);
@@ -263,9 +118,9 @@ int elf_relocate(elf_section_header *rel,char *address,uint32_t new_base)
                 *entry = value+addend-S;
                 break;
             case 8:
-                printf("old:%x",value);
+                //printf("old:%x",value);
                 *entry=value+new_base;
-                printf("new:%x;",*entry);
+                //printf("new:%x;",*entry);
                 break;
             default:
                 printf("unknow:%d;%s",strTable + symEntry->name);
@@ -275,18 +130,19 @@ int elf_relocate(elf_section_header *rel,char *address,uint32_t new_base)
     }
     return 0;
 }
-uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size)
+uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size,QNBinary_t *b)
 {
     QNBinary_t *bhead=bindata;
+    memcpy(b,bhead,sizeof(QNBinary_t));
     if(bhead->magic[0]=='Q'&&bhead->magic[1]=='B'&&bhead->magic[2]=='F')
     {
         
         uint32_t r= bhead->v_entry;
-        printf("checked magic! ventry:0x%x\n",r);
+        //printf("checked magic! ventry:0x%x\n",r);
         memcpy(dest_,bindata+sizeof(QNBinary_t),size);
         return r;
     }
-    printf(bhead->magic);
+    //printf(bhead->magic);
     return 0;
 }
 //验证elf格式是否正确，是否可加载， 正常返回0， 异常返回非0
@@ -496,9 +352,103 @@ void *elf_module_sym(elf_module* m, const char* name){
 
     return NULL;   
 }
+int ELF_header_32_parse(int fd, elf_header* ehdr) {
+    sys_lseek(fd, 0, SEEK_SET);
+    sys_read(fd,ehdr, sizeof(elf_header));
+    if(ehdr->magic[0] != ELF_MAGIC_0 
+        || ehdr->magic[1] != ELF_MAGIC_1 
+        || ehdr->magic[2] != ELF_MAGIC_2 
+        || ehdr->magic[3] != ELF_MAGIC_3 )return -1;
+    return 1;
+}
+void section_header_32_parse(int fd,elf_header* ehdr) {
+    
+    elf_section_header shdr[99];
+    int count = ehdr->shnum;    //节头表数量
+    sys_lseek(fd, ehdr->shoff, SEEK_SET);
+    sys_read(fd,shdr, sizeof(elf_section_header)*count);
+    uint32_t str_sz=shdr[ehdr->shstrndx].size;
+    uint32_t str_offset=shdr[ehdr->shstrndx].offset;
+    //printf("need %x offset:%x\n",shdr[ehdr->shstrndx].size,shdr[ehdr->shstrndx].offset);
+    sys_lseek(fd, str_offset, SEEK_SET);
+    int pgnum=ngx_align(str_sz,4096)/4096;
+    char *strtable=kmalloc_page(pgnum);
+    //printf("need %x offset:%x\n",str_sz,str_offset);
+    
+    sys_read(fd,strtable,shdr[ehdr->shstrndx].size);
+    //while(1);
+    for(int i = 0; i < count; ++i) {
+        uint32_t vaddr=0;
+        uint32_t offset=0;
+        uint32_t sz=0;
+        char avail=0;
+        //printf("%s ;",&strtable[shdr[i].name]);
+        if(!strcmp(&strtable[shdr[i].name],".data")
+        ||!strcmp(&strtable[shdr[i].name],".rodata")
+        ||!strcmp(&strtable[shdr[i].name],".text"))
+        {
+            vaddr=shdr[i].addr;
+            offset=shdr[i].offset;
+            sz=shdr[i].size;
+            avail=1;
+        }else if(!strcmp(&strtable[shdr[i].name],".bss"))
+        {
+            vaddr=shdr[i].addr;
+            sz=shdr[i].size;
+            offset=0;
+            avail=1;
+        }
+        if(avail)
+        {
+        //printf("Mapping %x %x %x\n",vaddr,offset,sz);
+        if(offset)
+        {
+            sys_lseek(fd,offset,SEEK_SET);
+            sys_read(fd,vaddr,sz);
+        }else
+        {
+            memset(vaddr,0,sz);
+        }
+        }
+        //while(1);
+    }
+    kfree_page(strtable,pgnum);
+}
+void program_header_32_parse(int fd,elf_header* ehdr,page_directory_t*pdt) {
+    elf_program_header phdr[10];
+    sys_lseek(fd, ehdr->phoff, SEEK_SET);
+    int count = ehdr->phnum>10?10:ehdr->phnum;    //程序头表的数量
+    sys_read(fd,phdr, sizeof(elf_program_header)*count);
+    for(int i = 0; i < count; ++i) {
+        if(phdr[i].type==1){
+            //printf("PT LOAD");
+            int nd=ngx_align(phdr[i].memsz,4096)/4096;
+            //printf("PTLOAD%d pgs!\n",nd);
+                for (int j = 0; j < nd; j++)
+                {
+                    if(page_chk_user(pdt,phdr[i].vaddr+j*4096))page_u_map_unset(pdt,phdr[i].vaddr+j*4096);
+                    page_u_map_set(pdt,phdr[i].vaddr+j*4096);
+                    //printf("map:0x%x\n",phdr[i].vaddr+j*4096);
+                }
+        }
+    }
+}
 
-
-
+int elf_load_user(int fd,page_directory_t *pdt)
+{
+    elf_header head;
+    if(ELF_header_32_parse(fd,&head)<0)
+    {
+        printf("bad elf head!");
+        return 0;
+    }
+    //printf("elf checked ok!");
+    program_header_32_parse(fd,&head,pdt);
+    //printf("Program header loaded!");
+    section_header_32_parse(fd,&head);
+    //printf("Section header Loaded!\n");
+    return head.entry;
+}
 
 
 

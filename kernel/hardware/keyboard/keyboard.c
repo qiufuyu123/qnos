@@ -15,6 +15,7 @@
 circlequeue_t key_board_queue;
 circlequeue_t wait_thread_queue;
 TCB_t* blocked_thread;
+char current_key;
 lock_t kbd_lock;
 static inline uint8_t inb(uint16_t port) {
    uint8_t data;
@@ -222,6 +223,7 @@ void intr_keyboard_handler(registers_t reg) {
          {
 	         //put_char(cur_char,BLACK,WHITE);
 			 //printf("[%c]",cur_char);
+          current_key=cur_char;
             circlequeue_push(&key_board_queue,&cur_char);
             thread_wakeup(blocked_thread);
          }
@@ -245,6 +247,7 @@ void intr_keyboard_handler(registers_t reg) {
          if(!circlequeue_full(&key_board_queue))
          {
 	         //put_char(cur_char,BLACK,WHITE);
+            current_key=scancode;
             circlequeue_push(&key_board_queue,&scancode);
             thread_wakeup(blocked_thread);
          }

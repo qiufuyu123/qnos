@@ -894,6 +894,10 @@ int ide_dev_write(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int fl
 {
    //if(self->type==KDEV_ATAPI)return ide_atapi_read(self->dev_id,addr,num,buffer);
 }
+kdevice_ops_t ata_dev_ops={
+   .read=ide_dev_read,
+   .write=ide_dev_write
+};
 void ide_initialize(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3,
 unsigned int BAR4) {
  
@@ -1068,11 +1072,11 @@ unsigned int BAR4) {
          sprintf(buf,"ata%d",i);
          if(ide_devices[i].Type)
          {
-            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATAPI,i,0,2048,ide_dev_read,ide_dev_write,0,0));
+            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATAPI,i,0,2048,&ata_dev_ops,0,0));
             //printf("[ATA DEVICE SEARCH:%s]",device_find("ata1")->name);
          }else
          {
-            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATA,i,0,2048,ide_dev_read,ide_dev_write,0,0));
+            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATA,i,0,2048,&ata_dev_ops,0,0));
          }
          
       }

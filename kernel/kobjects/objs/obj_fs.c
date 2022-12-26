@@ -292,6 +292,15 @@ vfs_dir_elem_t *__search_file_elem(char *path)
     printf("Not a file!;");
     return 0;
 }
+/**
+ * TODO:A LOT FOR MMAP
+*/
+int vfs_mmap(vfs_file_t *file, void*starts,uint32_t length,int offset,int flag)
+{
+    printf("in vfs mmap!");
+    vfs_inode_t *inode = inode2ptr(file->content->file);
+    return inode->i_ops->fs_mmap(&inode->inode_ptr,starts,length,offset,flag);
+}
 int vfs_fread(vfs_file_t *file, uint32_t size, uint32_t buffer)
 {
     if (file->open_flag & O_RDONLY || file->open_flag & O_RDWR)
@@ -314,7 +323,7 @@ int vfs_fwrite(vfs_file_t *file, uint32_t size, uint32_t buffer)
         if (inode->magic_num != INODE_MAGIC_NUM)
             return VFS_FORMAT_ERR;
         inode->seek_offset=file->lseek;
-        printf("ipswrite:0x%x",inode->i_ops->fs_write);
+        //printf("ipswrite:0x%x",inode->i_ops->fs_write);
         int r= inode->i_ops->fs_write(&inode->inode_ptr, size, buffer, 0);
         file->lseek=inode->seek_offset;
         return r;
@@ -399,14 +408,15 @@ vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void* elem)
     inode->inode_ptr=elem;
     inode->i_ops=&dev_ops;
     n_dir_elem->file=&inode->inode_ptr;
+    //inode->i_ops->fs_mmap=dev_ops.fs_mmap;
     if(!elem)
     {
         n_dir_elem->d_dir=__copy_dentry(root_sb->root_dir);
+        
         if(n_dir_elem->d_dir)
         {
             n_dir_elem->d_dir->ops=0;
             n_dir_elem->d_dir->dir_file=n_dir_elem->file;
-
         }
 
     }
@@ -439,7 +449,7 @@ vfs_file_ops_t file_ops = {
     .tell = vfs_tell,
     .lseek = vfs_lseek,
     .write = vfs_fwrite,
-    
+    .mmap=vfs_mmap
     };
 vfs_file_t *__vfs_check_reopen(vfs_dir_elem_t *elem)
 {
@@ -453,19 +463,20 @@ vfs_file_t *__vfs_check_reopen(vfs_dir_elem_t *elem)
 
     // fastmapper
 }
+
 vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 {
     // int t;
     IN_LOCK
     //printf("vfs:%s",path);
-    printf("s0s0s0s0");
+    //printf("s0s0s0s0");
     vfs_dir_elem_t *d_elem = __search_file_elem(path);
     if (!d_elem)
     {
         OUT_LOCK
         return 0;
     }
-    printf("s1s1s1s1");
+    //printf("s1s1s1s1");
     // uint32_t reopen=__vfs_check_reopen(d_elem);
     // if (reopen)
     // {
@@ -503,6 +514,21 @@ int sys_read(int fd, char *buffer, uint32_t size)
     }
     
     int r = f->ops->read(f, size, buffer);
+    OUT_LOCK
+    return r;
+}
+int sys_mmap(void*starts,uint32_t length,int fd,int offset,int flag)
+{
+        if (fd < 0)
+        return VFS_BAD_ARG_ERR;
+    IN_LOCK
+    vfs_file_t *f = thread_get_fd(fd);
+    if (!f)
+    {
+        OUT_LOCK
+        return VFS_NULL_OBJECT_ERR;
+    }
+    int r = f->ops->mmap(f,starts,length,offset,flag);
     OUT_LOCK
     return r;
 }
@@ -573,7 +599,7 @@ int sys_open(char *path, uint8_t flag)
         
         return VFS_NULL_OBJECT_ERR;
     }
-    printf("fd open ok!;");
+    //printf("fd open ok!;");
     int fd = thread_add_fd(f);
     OUT_LOCK
     if (fd < 0)

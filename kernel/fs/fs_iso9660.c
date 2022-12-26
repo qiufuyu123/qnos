@@ -19,7 +19,7 @@ iso_volumn_group_t* detect_for_volumns(vfs_super_block_t *sb)
     for (int i = 0; i <3 ; i++)
     {
         iso_volumn_symbol_t *buf=kmalloc(2048);
-        sb->dev->read(sb->dev,0x10+i,1,buf,0);
+        sb->dev->ops->read(sb->dev,0x10+i,1,buf,0);
         //char *test=buf;
         //printf("\n===>\n");
         //for (int i = 0; i < 100; i++)
@@ -35,25 +35,25 @@ iso_volumn_group_t* detect_for_volumns(vfs_super_block_t *sb)
         //
         if(buf->strA[0]=='C'&&buf->strA[1]=='D'&&buf->strA[2]=='0'&&buf->strA[3]=='0'&&buf->strA[4]=='1')
         {
-            printf("Find a volumn symbol:");
+            //printf("Find a volumn symbol:");
             if(buf->type_code==VOL_BOOT_SYM)
             {
                 ret->boot_vol=buf;
-                printf("BOOT SYM\n");
+                //printf("BOOT SYM\n");
             }else if(buf->type_code==VOL_MAIN_SYM)
             {
                 ret->main_vol=buf;
                 ret->main_lba=0x10+i;
-                printf("MAIN SYM\n");
+                //printf("MAIN SYM\n");
             }
             else if(buf->type_code==VOL_END_SYM)
             {
                 ret->end_vol=buf;
-                printf("END SYM\n");
+                //printf("END SYM\n");
             }else
             {
                 kfree(buf);
-                printf("Unknown\n");
+                //printf("Unknown\n");
             }
         }else
         {
@@ -124,7 +124,8 @@ int iso_inode_read(inode_handle file,uint32_t size,uint8_t *buffer,uint32_t flag
     uint32_t pg_cnt=ngx_align(size+offset_in_byte+phy_info->base_offset,4096)/4096;
     char *buf_page=kmalloc_page(pg_cnt);
     //printf("II:Prepare page buf; %d %d %d %d s:%d",offset_in_sect,offset_in_byte,phy_info->base_offset,phy_info->phy_lba,size);
-    inode->sb->dev->read(inode->sb->dev,phy_info->phy_lba+offset_in_sect,ngx_align(size+offset_in_byte+phy_info->base_offset,2048)/2048,buf_page,0);
+    int sect_need=ngx_align(size+offset_in_byte+phy_info->base_offset,2048)/2048;
+    inode->sb->dev->ops->read(inode->sb->dev,phy_info->phy_lba+offset_in_sect,sect_need,buf_page,0);
     //while(1);
     //printf("III:read ok!");
     memcpy(buffer,(uint32_t)buf_page+offset_in_byte+phy_info->base_offset,size);
@@ -280,7 +281,7 @@ int __travel_dir(list_elem_t*elem,uint32_t arg)
         printf("[ISO] Bad magic num!\n");
         return 1;
     }
-    printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
+    //printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
     return 0;
 }
 void iso_debug_list_dir(vfs_dentry_t *dir)
@@ -350,7 +351,7 @@ int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
     iso_dirent_t *root_dirent=&volumn_info->main_vol->root_dir[0];
     char *info=convert_str(volumn_info->main_vol->data_ready_desc,128);
     
-    printf("\n%s\n",info);
+    //printf("\n%s\n",info);
     //OK ,
     //Now, lets alloc the root inode
     vfs_inode_t*root_inode= vfs_alloc_inode();
@@ -359,27 +360,27 @@ int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
     if(!root_inode||!root_dentry){printf("[ISO]:Fail to alloc root_inode!\n");return VFS_ALLOC_ERR;}
     root_inode->i_ops=&iso_inode_ops;
     iso_dirent_t *iso_root_info=&volumn_info->main_vol->root_dir[0];
-    printf("root_lba:%d\n",iso_root_info->data_lba[0]);
+    //printf("root_lba:%d\n",iso_root_info->data_lba[0]);
     root_inode->inode_ptr=alloc_iso_inode_info;
-    printf("a");
+    //printf("a");
     iso_init_phy(root_inode->inode_ptr,iso_root_info->data_lba[0],0);
-    printf("b");
+    //printf("b");
     if(!root_inode->inode_ptr)return VFS_ALLOC_ERR;
     root_inode->magic_num=INODE_MAGIC_NUM;
     root_inode->sb=sb;
     root_inode->refer_count=root_inode->seek_offset=root_inode->sync_mark=0;
     root_inode->size_in_byte=iso_root_info->data_len[0];
     root_inode->file_type=VFS_INODE_TYPE_DIR;
-    printf("c");
+    //printf("c");
     list_append(&sb->inode_list,&root_inode->inode_elem);
-    printf("d");
+    //printf("d");
     sb->root_dir=root_dentry;
     root_dentry->dir_file=&root_inode->inode_ptr;
     list_append(&sb->dentry_list,&root_dentry->dentry_elem);
     list_init(&root_dentry->file_elems);
     root_dentry->parent_dir=root_dentry;
     //root_dentry->dir_data_size_in_byte=iso_root_info->data_len[0];
-    printf("%d",root_dentry->ops->load_inode_dirs(root_dentry,&root_inode->inode_ptr));
+    //printf("%d",root_dentry->ops->load_inode_dirs(root_dentry,&root_inode->inode_ptr));
     printf("[ISO] mount root dir OK!\n");
     
     

@@ -3,7 +3,7 @@
 #include"utils/circlequeue.h"
 #include"process/task.h"
 #include"console.h"
-#define MAX_BUF_LEN 80
+#define MAX_BUF_LEN 200
 char stdin_buf[MAX_BUF_LEN+1];
 int stdin_pointer=0;
 TCB_t *stdin_wait_queue=NULL;

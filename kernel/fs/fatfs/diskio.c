@@ -63,7 +63,7 @@ DRESULT disk_read (
 
 		// device_find("ramdisk0")->read()
 		// translate the reslut code here
-		cur_dev->read(cur_dev,sector,count,buff,0);
+		cur_dev->ops->read(cur_dev,sector,count,buff,0);
 		return 0;
 
 	}
@@ -91,7 +91,7 @@ DRESULT disk_write (
 
 	switch (pdrv) {
 	case DEV_RAM :
-		cur_dev->write(cur_dev,sector,count,buff,0);
+		cur_dev->ops->write(cur_dev,sector,count,buff,0);
 		return 0;
 	}
 

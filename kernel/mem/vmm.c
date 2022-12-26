@@ -98,7 +98,7 @@ void vmm_page_merge(uint32_t pg_num, uint8_t pg_sz)
         if(cur_page>pg_num&& cur_page-pg_num==1<<pg_sz)
         {
             //MERGE IT!
-            printf("MERGE! %d and %d\n",cur_page,pg_num);
+            //printf("MERGE! %d and %d\n",cur_page,pg_num);
             kvmm_page_list[last_page].next_page=kvmm_page_list[cur_page].next_page;
             kbuddy_list.area_list[pg_sz].p_first_num=kvmm_page_list[pg_num].next_page;
             vmm_page_append_to_buddy(get_friend_size(pg_sz),pg_num);
@@ -106,7 +106,7 @@ void vmm_page_merge(uint32_t pg_num, uint8_t pg_sz)
             return;
         }else if(pg_num>cur_page&&pg_num-cur_page==1<<pg_sz)
         {
-            printf("MERGE! %d and %d\n",cur_page,pg_num);
+            //printf("MERGE! %d and %d\n",cur_page,pg_num);
             kvmm_page_list[last_page].next_page=kvmm_page_list[cur_page].next_page;
             kbuddy_list.area_list[pg_sz].p_first_num=kvmm_page_list[pg_num].next_page;
             vmm_page_append_to_buddy(get_friend_size(pg_sz),cur_page);
@@ -262,23 +262,40 @@ void init_vmm()
     vmm_buddy_free(p3,1);
     //kbuddy_list.area_list[0]
 }
-void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr)
+void vmm_doublemap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr)
 {
     
-     vmm_buddy_free(vaddr_in_kernel,page_cnt);//free vmm information
+    //vmm_buddy_free(vaddr_in_kernel,page_cnt);//free vmm information
     for (int i = 0; i < page_cnt; i++)
     {
         //printf("s1\n");
         uint32_t paddr= page_kv2p(vaddr_in_kernel+i*4096);
-        //printf("s2\n");
-        page_unlink_pa(vaddr_in_kernel+i*4096);//Unlink the mapping
-        //printf("s3\n");
-        //printf("map 0x%x --> 0x%x pdt is 0x%x\n",paddr,new_vaddr+i*4096,newpdt);
         page_u_map_set_pa(newpdt,new_vaddr+i*4096,paddr);//rebuild mapping for user
         //printf("sn\n");
+    }  
+}
+void vmm_remapcls_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr)
+{
+    vmm_buddy_free(vaddr_in_kernel,page_cnt);//free vmm information
+    for (int i = 0; i < page_cnt; i++)
+    {
+        uint32_t paddr= page_kv2p(vaddr_in_kernel+i*4096);
+        page_unlink_pa(vaddr_in_kernel+i*4096);//Unlink the mapping
+        if(page_chk_user(newpdt,new_vaddr+i*4096))
+        {
+            page_u_map_unset(newpdt,new_vaddr+i*4096); //free the used map
+        }
+        page_u_map_set_pa(newpdt,new_vaddr+i*4096,paddr);//rebuild mapping for user
     }
-   
+}
+void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr)
+{
     
-    
-
+    vmm_buddy_free(vaddr_in_kernel,page_cnt);//free vmm information
+    for (int i = 0; i < page_cnt; i++)
+    {
+        uint32_t paddr= page_kv2p(vaddr_in_kernel+i*4096);
+        page_unlink_pa(vaddr_in_kernel+i*4096);//Unlink the mapping
+        page_u_map_set_pa(newpdt,new_vaddr+i*4096,paddr);//rebuild mapping for user
+    }
 }

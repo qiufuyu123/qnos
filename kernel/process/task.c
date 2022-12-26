@@ -2,6 +2,7 @@
 #include"process/task.h"
 #include"console.h"
 #include"io.h"
+#include"hardware/timer.h"
 #include"mem/malloc.h"
 #include"mem/vmm.h"
 #include"mem/memorylayout.h"
@@ -99,7 +100,12 @@ void threads_init(){
 	// page_setup_kernel_pdt();
 	
 }
-
+void user_sleep(uint32_t ms)
+{
+	get_running_progress()->ticks_cnt=get_tick();
+	get_running_progress()->sleep_time=ms;
+	thread_block();
+}
 //用于创建线程的PCB
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
 	TCB_t * tcb_buffer_addr = (TCB_t*)page_addr;
@@ -206,14 +212,14 @@ int user_fork()
 	if(get_running_progress()->is_kern_thread!=0)return -1;
 	cli();
 	TCB_t*old_tcb=get_running_progress();
-	TCB_t*new_tcb=kmalloc_page(1);
+	TCB_t*new_tcb=kmalloc_page(2);
 	//printf("f2");
 	if(!new_tcb)
 	{
 		sti();
 		return -1;
 	}
-	memcpy(new_tcb,old_tcb,4096);
+	memcpy(new_tcb,old_tcb,4096*2);
 	new_tcb->tid=thread_get_pid();
 	new_tcb->name=strsafecat(old_tcb->name,"_fork");
 	if(!new_tcb->name)
@@ -228,7 +234,7 @@ int user_fork()
 	old_tcb->next=new_tcb;
 	new_tcb->kern_user2kern_stack_top=new_tcb;
 	new_tcb->pdt_vaddr=page_clone_user_page(old_tcb->pdt_vaddr,0x80000000);
-	new_tcb->kern_stack_top=(uint32_t)new_tcb+4095;
+	new_tcb->kern_stack_top=(uint32_t)new_tcb+4096*2-1;
 	new_tcb->context.ebp=new_tcb->kern_stack_top;
 	*(new_tcb->kern_stack_top-6)=intr_exit;
 	*(new_tcb->kern_stack_top-3)=0x202;
@@ -295,7 +301,7 @@ int kernel_fork()
 	//switch_get(&tmp_con);
 	//printf("STAGE 2");
 	new_tcb->context=tmp_con;
-	printf("stack top:0x%x,esp:0x%x,ebp:0x%x;",stack_top,tmp_con.esp,tmp_con.ebp);
+	//printf("stack top:0x%x,esp:0x%x,ebp:0x%x;",stack_top,tmp_con.esp,tmp_con.ebp);
 	uint32_t offset_esp=stack_top- tmp_con.esp;
 	uint32_t offset_ebp=stack_top-tmp_con.ebp;
 	//3rd reset the register
@@ -311,7 +317,7 @@ int kernel_fork()
 	//printf("latest exa:%d\n",t);
 	//fastmapper_add
 	//fastmapper_remove(&pid_mapper,new_tcb->tid);
-	printf("dst:0x%x,from:0x%x,sz:0x%x;",new_stack_top-stack_sz,stack_top-stack_sz,stack_sz);
+	//printf("dst:0x%x,from:0x%x,sz:0x%x;",new_stack_top-stack_sz,stack_top-stack_sz,stack_sz);
 	memcpy(new_stack_top-stack_sz,stack_top-stack_sz,stack_sz);
 	if(get_running_progress()->tid==new_tcb->tid)
 	{
@@ -330,7 +336,7 @@ int user_test2()
 int _user_task_func(void *args)
 {
 	cli();//IMPORTANT!!!!!
-	printf("before switch! 0x%x",(uint32_t)args);
+	//printf("before switch! 0x%x",(uint32_t)args);
 	if(!args)
 	{
 		switch_to_user_mode();
@@ -382,7 +388,7 @@ char *look_for_filename(char *path)
 	}
 	
 }
-void tast_ps()
+void task_ps()
 {
 	TCB_t* now=get_running_progress();
 	TCB_t* ori=now;
@@ -392,13 +398,66 @@ void tast_ps()
 		Klogger->setcolor(0x000000,0xFF69B4);
 		printf("%d ",i);
 		Klogger->setcolor(0x000000,0xffffff);
-		printf("PID:%d Name:%s Level:%d State:%d\n",now->tid,now->name?now->name:"",now->is_kern_thread,now->task_status);
+		printf("PID:%d Name:%s     Level:%d      State:%d\n",now->tid,now->name?now->name:"",now->is_kern_thread,now->task_status);
 		i++;
 		if(now->next==ori)break;
 		now=now->next;
 	}
 	
 }
+int user_exec(char*path)
+{
+	//1st load file
+	TCB_t*now=get_running_progress();
+	#ifdef __DEBUG_FILE_SYSTEM
+	int fd= sys_open(path,O_RDONLY);
+	if(fd<0)return -1;
+	char *file_buf=kmalloc_page(3);
+	sys_read(fd,file_buf,4096*3);
+	int l=sys_tell(fd);
+	uint32_t func=0;
+	cli();
+	uint32_t r=elf_load_user(fd,now->pdt_vaddr);
+	if(r==0){
+	QNBinary_t bhead;
+	func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t),&bhead);
+	for (int i = 0; i < 5; i++)
+	{
+		if(!bhead.v_loads[i][0])continue;
+		int add=bhead.v_loads[i][1];
+		uint32_t base=bhead.v_loads[i][0];
+		for (int j = 0; j < add; j++)
+		{
+			if(page_chk_user(now->pdt_vaddr,base+j*4096))page_u_map_unset(now->pdt_vaddr,base+j*4096);
+			page_u_map_set(now->pdt_vaddr, base+j*4096);
+		}
+		
+		
+	}
+	
+	#endif
+	//2nd remap it
+	vmm_remapcls_pages(now->pdt_vaddr,file_buf,3,0x80000000);
+	printf("resolved func addr:0x%x\n",func);
+	}else
+	{
+		func=r;
+	}
+	//3rd reset stacks!
+	now->kern_stack_top=(uint32_t)now+4096*2-1;
+	now->context.ebp=now->kern_stack_top;
+	*(now->kern_stack_top-6)=intr_exit;
+	*(now->kern_stack_top-3)=0x202;
+	*(now->kern_stack_top-2)=0xffffe000;
+	*(now->kern_stack_top-5)=func;
+	//*(new_tcb->kern_stack_top-6)=0;//ret value
+	now->context.esp=now->kern_stack_top-6;
+	kfree(now->name);
+	now->name=strdup(look_for_filename(path));
+	sti();
+	return 1;
+}
+
 TCB_t *create_user_thread(char *path)
 {
 	#ifdef __DEBUG_FILE_SYSTEM
@@ -407,10 +466,11 @@ TCB_t *create_user_thread(char *path)
 	char *file_buf=kmalloc_page(3);
 	sys_read(fd,file_buf,4096*3);
 	int l=sys_tell(fd);
+	QNBinary_t bhead;
+	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t),&bhead);
 
-	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t));
 	#endif
-	uint32_t TCB_page = kmalloc_page(1);
+	uint32_t TCB_page = kmalloc_page(2);
     if(TCB_page==0){
         printf("Can`t Create New User Task Because Of Error When Alloc TCB Page From Kernel VMM!STOP!");
 		return 0;
@@ -447,6 +507,12 @@ TCB_t *create_user_thread(char *path)
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
 	//test_invlpg(0xffffe000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
+		for (int i = 0; i < 5; i++)
+	{
+		if(!bhead.v_loads[i][0])continue;
+		if(page_chk_user(new_tcb->pdt_vaddr,bhead.v_loads[i][0]))page_u_map_unset(new_tcb->pdt_vaddr,bhead.v_loads[i][0]);
+		page_u_map_set(new_tcb->pdt_vaddr, bhead.v_loads[i][0]);
+	}
 	//test_invlpg(0xffffd000);
 	new_tcb->context.ebp=new_tcb->kern_stack_top;
 	/**
@@ -470,7 +536,7 @@ TCB_t *create_user_thread(char *path)
 	*(--new_tcb->kern_stack_top)=0;
 	#endif
 	*(--new_tcb->kern_stack_top)=user_exit;
-	*(--new_tcb->kern_stack_top)=_user_task_func;
+	*(--new_tcb->kern_stack_top)=func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
 	page_setup_kernel_pdt();
 sti();
@@ -582,6 +648,16 @@ int schedule(){
 				//clean_up_dead(probe);
 				//TODO: CLEAN UP THE DIE THREAD
 				continue;
+			}else if(probe->task_status==TASK_BLOCKED)
+			{
+				if(probe->ticks_cnt)
+				{
+					if(get_tick()-probe->ticks_cnt>=probe->sleep_time)
+					{
+						probe->ticks_cnt=0;
+						thread_wakeup(probe);
+					}
+				}
 			}
             else{
                 continue;
@@ -675,23 +751,27 @@ void __freeing_mem_thread(TCB_t*now)
 	if(!now->is_kern_thread)page_free_pdt(now->pdt_vaddr);
 	
 }
-
+void user_wait()
+{
+	TCB_t* now = get_running_progress();
+	cli();
+    now->task_status = TASK_WAITING;
+    schedule();
+    sti();
+}
 void user_exit(){
-	// cli();
-	// printf("in thread exit!");
-	// get_running_progress()->task_status=TASK_DIED;
-	// sti();
-	// remove_thread(get_running_progress());
-	// //__freeing_mem_thread();
-	// TCB_t *now = cur_tcb;
-	// TCB_t *next_tcb = cur_tcb->next;
-	// next_tcb->time_left = TIME_CONT;
-	// cur_tcb = cur_tcb->next;
-	// printf("thread:%d exit with code:%d;",now->tid,now->context.eax);
-	// //list_append(&dead_thread_list,&now->dead_tag);
-	// switch_to(&(now->context),&(next_tcb->context));
-	//get_running_progress()->task_status=TASK_DIED;
-	thread_block();
+	//cli and sti is used to sync to access the threads list and it`s node information
+    TCB_t* now = get_running_progress();
+    //bool condition=cli_condition();
+	cli();
+    now->task_status = TASK_DIED;
+	if(now->parent_thread)
+	{
+		if(now->parent_thread->task_status==TASK_WAITING)thread_wakeup(now->parent_thread);
+	}
+    schedule();
+    //reload the interrupt flag before block
+    sti();
 	//注意 暂时没有回收此线程页
 }
 

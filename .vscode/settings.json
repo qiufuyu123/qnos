@@ -179,7 +179,8 @@
         "ramdisk.h": "c",
         "ff.h": "c",
         "diskio.h": "c",
-        "framebuffer.h": "c"
+        "framebuffer.h": "c",
+        "ql.h": "c"
     },
     
 }

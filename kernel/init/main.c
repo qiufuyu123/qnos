@@ -7,7 +7,7 @@
 #include"KMDK/KMDK.h"
 #include"string.h"
 #include"hardware/ramdisk.h"
-
+#include"hardware/kbd.h"
 #include"gates/idt.h"
 #include"hardware/timer.h"
 #include"hardware/keyboard/keyboard.h"
@@ -32,6 +32,7 @@
 #include"sysmodule.h"
 #include"process/syscall.h"
 #include"kobjects/obj_serial.h"
+#include"hardware/framebuffer.h"
 #define VIDEO 0xB8000
 #define __DEBUG_FILE_SYSTEM 0
 extern circlequeue_t stdin_buf;
@@ -49,17 +50,17 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 }
 void test_t1(void *args)
 {
-    #ifdef __DEBUG_FILE_SYSTEM
-    int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
-    if(fd<0)
-    {
-        printf("t1 open fail!\n");
-        while(1);
-    }
-    char buf[30];
-    sys_read(fd,buf,3);
-    printf("t1:read 3 bytes from 0:%s",buf);
-    #endif
+    // #ifdef __DEBUG_FILE_SYSTEM
+    // int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
+    // if(fd<0)
+    // {
+    //     printf("t1 open fail!\n");
+    //     while(1);
+    // }
+    // char buf[30];
+    // sys_read(fd,buf,3);
+    // printf("t1:read 3 bytes from 0:%s",buf);
+    // #endif
     
     while (1)
     {
@@ -181,21 +182,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //     else printf("value:%d %s type:%d;",v->number,v->pure_str,v->type);
     // }
     // symbol_init();
-    circlequeue_t test_queue;
-    circlequeue_init(&test_queue,5,1);
-    const char *tstr="ABCDEFG";
-    for (int i = 0; i < 6; i++)
-    {
-        printf("push:%d;",circlequeue_push(&test_queue,&tstr[i]));
-    }
-    for (int i = 0; i < 6; i++)
-    {
-        char *s= circlequeue_get(&test_queue);
-        if(s)printf("get:%c;",*s);
-        else printf("fail get!");
-    }
-    //printf("printf:0x%x",symbol_find("printf"));
-    //fd=sys_open("/boot/test.sys",O_RDONLY);
+    
     uint32_t sys_addr,pgn;
     //fd= kread_all("/boot/test.sys",&sys_addr,&pgn);
    // printf("sys module fd:%d 0x%x;",fd,sys_addr);
@@ -237,12 +224,12 @@ int kernelmain(uint32_t magic,uint32_t addr)
     //     //}
     // }
     //sti();
+    device_add(device_create_framebuffer(0));
     device_add(device_create_ramdisk(0));
+    device_add(device_create_kbd(0));
     init_syscall();
     device_enum2();
-    printf("66666666666");
     int fd=sys_open("/dev/ramdisk0",O_RDWR);
-    printf("openok");
     if(fd>=0)
     {
         sys_write(fd,"hello mem",10);   

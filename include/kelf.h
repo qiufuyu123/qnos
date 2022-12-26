@@ -20,7 +20,7 @@ elf文件加载（动态加载运行so）
 不支持重定向表
 
 */
-
+#include"mem/page.h"
 #include "types.h"
 //#include <stdlib.h>
 
@@ -49,10 +49,11 @@ typedef struct
 {
     char magic[3];
     uint32_t v_entry;
+    uint32_t v_loads[5][2];
 }QNBinary_t;
 
 //return entry point vaddr
-uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size);
+uint32_t qbinary_load(char *bindata,uint32_t dest_,uint32_t size,QNBinary_t *b);
 
 //验证elf格式是否正确，是否可加载， 正常返回0， 异常返回非0
 int elf_check(const uint8_t *elfdata, size_t elflen);
@@ -70,6 +71,7 @@ void *elf_module_entry(elf_module *m);
 //获取函数地址
 void *elf_module_sym(elf_module *m, const char *name);
 void elf_module_release(elf_module *m);
+int elf_load_user(int fd,page_directory_t *pdt);
 // elf_check 返回结果
 #define ELF_CHECK_OK 0
 #define ELF_CHECK_ERR_LENGTH -1

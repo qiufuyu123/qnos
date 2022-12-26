@@ -19,3 +19,15 @@ void ps()
 {
     __base_syscall(SYSCALL_PS,0,0,0,0);
 }
+void sleep(int ms)
+{
+    __base_syscall(SYSCALL_SLEEP,ms,0,0,0);
+}
+void meminfo(int *usedkb,int *allkb)
+{
+    __base_syscall(SYSCALL_MEMINFO,usedkb,allkb,0,0);
+}
+void wait()
+{
+    __base_syscall(SYSCALL_WAIT,0,0,0,0);
+}

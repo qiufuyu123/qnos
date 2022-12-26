@@ -111,6 +111,7 @@ typedef struct inode_ops
     int (*fs_read)(inode_handle file,uint32_t size,void* buffer, uint32_t flag);
     int (*fs_write)(inode_handle file,uint32_t size,void* buffer, uint32_t flag);
     int (*fs_lseek)(inode_handle file,uint32_t source,uint32_t offset);
+    int(*fs_mmap)(inode_handle file, void*starts,uint32_t length,int offset,int flag);
     //vfs_dirents_t* (*fs_opendir)(inode_handle parent_inode,int *dir_cnt);
     //void (*fs_closedir)(vfs_dirents_t*dirs,int dir_cnt);
 }inode_ops_t;
@@ -183,6 +184,7 @@ typedef struct vfs_file_ops
     int (*lseek)(struct vfs_file*file,uint32_t offset,uint8_t base);
     int (*tell)(struct vfs_file*file);
     int (*close)(struct vfs_file *file);
+    int (*mmap)(struct vfs_file *file, void*starts,uint32_t length,int offset,int flag);
 }vfs_file_ops_t;
 struct vfs_file
 {
@@ -212,6 +214,7 @@ vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void*elem);
 vfs_file_t *vfs_fopen(char *path,uint8_t flag);
 int sys_open(char *path,uint8_t flag);
 int sys_read(int fd,char *buffer,uint32_t size);
+int sys_mmap(void*starts,uint32_t length,int fd,int offset,int flag);
 int sys_write(int fd, char *buffer, uint32_t size);
 int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);

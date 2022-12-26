@@ -41,20 +41,20 @@
 
 typedef struct kmemorylayout
 {
-    uint32_t text_video_buffer;
-    uint32_t total_mem_in_kb;
-    uint32_t kstart;
-    uint32_t kend;
-    uint32_t phy_bitmap_addr; //256kb
-    uint32_t kpde_phy_addr;
+    uint32_t text_video_buffer;  //文本显存
+    uint32_t total_mem_in_kb;    //总内存
+    uint32_t kstart;             //内核起始地址
+    uint32_t kend;               //内核结束地址
+    uint32_t phy_bitmap_addr;    //256kb 物理内存管理Bitmap地址
+    uint32_t kpde_phy_addr;      //内核页位置
     //uint32_t vir_bitmap_addr;
-    uint32_t phy_bitmap_need_bytes;
+    uint32_t phy_bitmap_need_bytes;//物理内存管理Bitmap所需的大小
 
-    uint32_t kpage_dir_phy_addr;
-    uint32_t kfree_paddr_start;
+    uint32_t kpage_dir_phy_addr; //内核页的物理地址
+    uint32_t kfree_paddr_start;  //空闲物理页起始地址
 
-    uint32_t user_base_addr_start;
-    uint32_t video_frambuffer_addr;
+    uint32_t user_base_addr_start;//用户地址起始位置
+    uint32_t video_frambuffer_addr;//vga显存
 }kmemorylayout_t;
 extern kmemorylayout_t kernel_mem_map;
 

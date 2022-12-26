@@ -3,12 +3,20 @@
 #ifndef __USER__LIB
 #include"types.h"
 #endif
+typedef struct 
+{
+    int v1;
+    int v2;
+    int v3;
+    int v4;
+}syscall_extra_args;
 
 enum QNFileOperate
 {
     FOP_OPEN,
     FOP_READ,
-    FOP_CLOSE
+    FOP_CLOSE,
+    FOP_MMAP
 };
 enum QNSyscall
 {
@@ -23,6 +31,9 @@ enum QNSyscall
     SYSCALL_TEST_LIST_DIR,
     SYSCALL_EXEC,
     SYSCALL_PS,
+    SYSCALL_SLEEP,
+    SYSCALL_MEMINFO,
+    SYSCALL_WAIT,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

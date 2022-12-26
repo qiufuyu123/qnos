@@ -40,10 +40,6 @@
     281 ./kernel/mem/malloc.c
       0 ./kernel/fs/fs_fat32.c
     398 ./kernel/fs/fs_iso9660.c
-    208 ./kernel/fs/fatfs/ffsystem.c
-   7084 ./kernel/fs/fatfs/ff.c
-  15593 ./kernel/fs/fatfs/ffunicode.c
-    116 ./kernel/fs/fatfs/diskio.c
     438 ./kernel/utils/qconfig.c
     171 ./kernel/utils/fastmapper.c
     399 ./kernel/utils/hashmap.c
@@ -113,4 +109,4 @@
     220 ./include/kobjects/obj_vfs.h
       5 ./include/kobjects/obj_serial.h
      78 ./tools/qnelf2bin/main.c
-  36111 total
+  13110 total

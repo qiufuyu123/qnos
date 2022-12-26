@@ -57,7 +57,7 @@ int main()
         if(!strcmp(buf,"ver"))
         {
             printlogo();
-            printf("\n[QNKERNEL Ver 0.3.3F Alpha 12/20/22]\n");
+            printf("\n[QNKERNEL Ver 0.3.9F Alpha 12/26/22]\n");
         }
         else if(!strcmp(buf,"cls"))
         {
@@ -84,16 +84,46 @@ int main()
             {
                 printf("[THIS IS PARENT!]\n[CHILD IS %d]buf is 0x%x\n",r,buf);
             }
-        }else if(!strcmp(buf,"ps"))
+        }else if(!strcmp(buf,"test3"))
+        {
+            int fd=open("/dev/fb0",O_RDWR); //打开 framebuffer设备文件
+            printf("OPEN FB0:%d\n",fd);     
+            mmap(0x90000000,10,fd,0x138000,0);
+            //将文件内容映射到当前用户内存中
+            //(framebuffer即 显存设备，内核会处理)
+
+            memset(0x90000000,0xff,4096*10);
+            //填充映射的空间
+            //即 填充一部分显存
+        }
+        else if(!strcmp(buf,"exit"))
+        {
+            printf("Bye~\n");
+            exit(1);
+        }
+        else if(!strcmp(buf,"ps"))
         {
             ps();
         }
         else if(!strncmp(buf,"ls",2))
         {
             ls_dir(buf+3);
-        }else if(!strncmp(buf,"exe",3))
+        }
+        else if(!strncmp(buf,"exe",3))
         {
-            exec(buf+4);
+            char is_wait=1;
+            if(buf[strlen(buf)-1]=='&')
+            {
+                buf[strlen(buf)-1]='\0';
+                is_wait=0;
+            }
+            if(fork()==0)
+            {
+                printf("FORK A THREAD FOR EXECUTE!\n");
+                exec(buf+4);
+                while(1);//This line will never be executed!
+            }
+            if(is_wait)wait();
         }
         else printf("\n[%s] <-- unknown command!\n",buf);
         //while(1);
