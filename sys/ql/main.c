@@ -13,8 +13,8 @@ int main()
     ql_ctx ctx;
 	ql_init(&ctx, membuf, 1024 * 4);
     char codes[400];
-    char buf[40];
-    memset(buf,40,0);
+    char buf[80];
+    memset(buf,80,0);
     memset(codes,0,400);
    printf("QLANG VER 0.1 \n");
     while (1)
@@ -22,7 +22,7 @@ int main()
         printf(">");
         while (1)
 		{
-            gets_s(buf,39);
+            gets_s(buf,79);
             if(!strcmp(buf,"cls"))
             {
                 clrscr();
@@ -43,7 +43,7 @@ int main()
 		
         ql_gc_static(&ctx);
 		if(ql_eval(&ctx,&copy,0)>=0)printf("result is:%d\n", ctx.last_res.addr);
-        memset(buf,40,0);
+        memset(buf,80,0);
         memset(codes,0,400);
         /* code */
     }

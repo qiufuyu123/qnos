@@ -1,7 +1,7 @@
 #include"ql.h"
 #include"string.h"
 #include"stdio.h"
-#define QL_DEBUG
+//#define QL_DEBUG
 int pow10(int n)
 {
 	int sum = 10;
@@ -787,7 +787,11 @@ int ql_eval(ql_ctx* ctx, char** ocodes,int depth)
 		char* vname = codes;*/
 		char old = 0;
 		char *vname= ql_varname(&codes, &old, &len);
-		ql_chkzero(vname, "Cannot find symbol!\n");
+		if(!vname)
+		{
+			ql_err("Cannot read symbol name as %s\n",codes);
+			return -1;
+		}
 		int idx = ql_findsym(ctx, vname, &v);
 		ql_restorename(vname, old, len);
 		if (idx>=0)

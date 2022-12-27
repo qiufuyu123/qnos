@@ -35,25 +35,25 @@ iso_volumn_group_t* detect_for_volumns(vfs_super_block_t *sb)
         //
         if(buf->strA[0]=='C'&&buf->strA[1]=='D'&&buf->strA[2]=='0'&&buf->strA[3]=='0'&&buf->strA[4]=='1')
         {
-            //printf("Find a volumn symbol:");
+            printf("Find a volumn symbol:");
             if(buf->type_code==VOL_BOOT_SYM)
             {
                 ret->boot_vol=buf;
-                //printf("BOOT SYM\n");
+                printf("BOOT SYM\n");
             }else if(buf->type_code==VOL_MAIN_SYM)
             {
                 ret->main_vol=buf;
                 ret->main_lba=0x10+i;
-                //printf("MAIN SYM\n");
+                printf("MAIN SYM\n");
             }
             else if(buf->type_code==VOL_END_SYM)
             {
                 ret->end_vol=buf;
-                //printf("END SYM\n");
+                printf("END SYM\n");
             }else
             {
                 kfree(buf);
-                //printf("Unknown\n");
+                printf("Unknown\n");
             }
         }else
         {
@@ -148,7 +148,7 @@ int iso_inode_lseek(inode_handle file,uint32_t source,int offset)
 }
 int __travel_dir_find(list_elem_t*elem,char * arg)
 {
-    
+    printf("find ...");
     vfs_dir_elem_t *n_dir_elem= elem2entry(vfs_dir_elem_t,list_tag,elem);
     vfs_inode_t*inode=inode2ptr(n_dir_elem->file);
     if(inode->magic_num!=INODE_MAGIC_NUM)
@@ -157,7 +157,7 @@ int __travel_dir_find(list_elem_t*elem,char * arg)
         return 0;
         //return 1;
     }
-    //printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
+    printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
     if(!strcmp(n_dir_elem->name,arg))return 1;
     return 0;
 }
@@ -380,9 +380,9 @@ int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
     list_init(&root_dentry->file_elems);
     root_dentry->parent_dir=root_dentry;
     //root_dentry->dir_data_size_in_byte=iso_root_info->data_len[0];
-    //printf("%d",root_dentry->ops->load_inode_dirs(root_dentry,&root_inode->inode_ptr));
+    root_dentry->ops->load_inode_dirs(root_dentry,&root_inode->inode_ptr);
     printf("[ISO] mount root dir OK!\n");
-    
+    //vfs_print_dir("/");
     
     vfs_dir_elem_t *elem=root_dentry->ops->find_dentry(root_dentry,"boot");
     if(!elem)printf("[ISO] Cannot find 'boot'");

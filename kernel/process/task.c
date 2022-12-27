@@ -448,7 +448,7 @@ int user_exec(char*path)
 	now->context.ebp=now->kern_stack_top;
 	*(now->kern_stack_top-6)=intr_exit;
 	*(now->kern_stack_top-3)=0x202;
-	*(now->kern_stack_top-2)=0xffffe000;
+	*(now->kern_stack_top-2)=0xFFFFe000;
 	*(now->kern_stack_top-5)=func;
 	//*(new_tcb->kern_stack_top-6)=0;//ret value
 	now->context.esp=now->kern_stack_top-6;
@@ -503,10 +503,12 @@ TCB_t *create_user_thread(char *path)
 	new_tcb->is_kern_thread=0;
 	new_tcb->pdt_vaddr=page_clone_cleaned_page();
 	new_tcb->kern_stack_top=0xFFFFe000;
-	page_u_map_set(new_tcb->pdt_vaddr,0xffff0000);
+	page_u_map_set(new_tcb->pdt_vaddr,0xffffb000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffe000);
-	//test_invlpg(0xffffe000);
 	page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
+	page_u_map_set(new_tcb->pdt_vaddr,0xffffc000);
+	//test_invlpg(0xffffe000);
+	//page_u_map_set(new_tcb->pdt_vaddr,0xffffd000);
 		for (int i = 0; i < 5; i++)
 	{
 		if(!bhead.v_loads[i][0])continue;
