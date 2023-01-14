@@ -2,6 +2,11 @@
 #include"mem/malloc.h"
 #include"utils/fastmapper.h"
 #include"console.h"
+/**
+ * Note :
+ * Align pack uncanceled bug(already fixed)
+ * Details in notes.md
+*/
 slab_unit_t* kdev_slab;
 fastmapper_t dev_list;
 int dev_read(inode_handle file,uint32_t size,void* buffer, uint32_t flag)
@@ -48,7 +53,7 @@ kdevice_t *device_create(char *name,char root_type,char type,int dev_id,kobject_
     re->extra_data_sz=extra_data_sz;
     re->dev_id=dev_id;
     re->hardware=hardware;
-    memcpy(re->name,name,20);
+    memcpy(&re->name[0],name,20);
     re->root_type=root_type;
     re->type=type;
     re->unit_size=usize;
@@ -62,11 +67,8 @@ void device_enum2()
     while (1)
     {
         kdevice_t*dev=fastmapper_get(&dev_list,i);
-        // printf("get %s",dev->name);
         if(!dev)return;
         vfs_dir_elem_t*elem= vfs_mkvdir("/dev/", dev->name,dev);
-        // vfs_inode_t*inode= inode2ptr(elem->file);
-        // inode->file_type=VFS_INODE_TYPE_FILE;
         i++;
     }
     //printf("222333");
@@ -74,7 +76,6 @@ void device_enum2()
 int device_add(kdevice_t*dev)
 {
     if(!dev)return -1;
-    //printf("[DEVICE :ADD NEW DEVICE:%s]\n",dev->name);
     return fastmapper_add_auto(&dev_list,dev);
 }
 bool dev_cmp(kdevice_t *value,char*expect)

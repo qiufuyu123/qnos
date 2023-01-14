@@ -863,10 +863,13 @@ unsigned char ide_atapi_read(unsigned char drive, unsigned int lba, unsigned cha
 int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int lba,
                       uint8_t *buffer) {
  
-   // 1: Check if the drive presents:
    // ==================================
-   if (drive > 3 || ide_devices[drive].Reserved == 0) return -1;      // Drive Not Found!
- 
+   if (drive > 3 || ide_devices[drive].Reserved == 0) 
+   {
+      printf("Drive %d Not Found!\n",drive);
+      return -1;      // Drive Not Found!
+   }
+   
    // 2: Check if inputs are valid:
    // ==================================
                     // Seeking to invalid position.
@@ -876,7 +879,9 @@ int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int l
    else {
       unsigned char err;
       if (ide_devices[drive].Type == IDE_ATA)
+      {
          err = ide_ata_access(ATA_READ, drive, lba, numsects,buffer);
+      }
       else if (ide_devices[drive].Type == IDE_ATAPI)
          for (int i = 0; i < numsects; i++)
          {
@@ -888,10 +893,12 @@ int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int l
 }  
 int ide_dev_read(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
 {
-   if(self->type==KDEV_ATAPI)return ide_read_sectors(self->dev_id,num,addr,buffer);
+   return ide_read_sectors(self->dev_id,num,addr,buffer);
 }
 int ide_dev_write(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
 {
+   if(self->type==KDEV_ATAPI)return -4;
+   return ide_ata_access(ATA_WRITE,self->dev_id,addr,num,buffer);
    //if(self->type==KDEV_ATAPI)return ide_atapi_read(self->dev_id,addr,num,buffer);
 }
 kdevice_ops_t ata_dev_ops={
@@ -1073,10 +1080,9 @@ unsigned int BAR4) {
          if(ide_devices[i].Type)
          {
             device_add(device_create(buf,KDEV_BLOCK,KDEV_ATAPI,i,0,2048,&ata_dev_ops,0,0));
-            //printf("[ATA DEVICE SEARCH:%s]",device_find("ata1")->name);
          }else
          {
-            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATA,i,0,2048,&ata_dev_ops,0,0));
+            device_add(device_create(buf,KDEV_BLOCK,KDEV_ATA,i,0,512,&ata_dev_ops,0,0));
          }
          
       }

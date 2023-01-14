@@ -148,7 +148,7 @@ int iso_inode_lseek(inode_handle file,uint32_t source,int offset)
 }
 int __travel_dir_find(list_elem_t*elem,char * arg)
 {
-    printf("find ...");
+    //printf("find ...");
     vfs_dir_elem_t *n_dir_elem= elem2entry(vfs_dir_elem_t,list_tag,elem);
     vfs_inode_t*inode=inode2ptr(n_dir_elem->file);
     if(inode->magic_num!=INODE_MAGIC_NUM)
@@ -157,7 +157,7 @@ int __travel_dir_find(list_elem_t*elem,char * arg)
         return 0;
         //return 1;
     }
-    printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
+    //printf("Find a %s, name: %s max_byte:%d;\n",((char *[]){"file","dir"})[inode->file_type],n_dir_elem->name,inode->size_in_byte);   
     if(!strcmp(n_dir_elem->name,arg))return 1;
     return 0;
 }
@@ -356,9 +356,10 @@ int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
     //Now, lets alloc the root inode
     vfs_inode_t*root_inode= vfs_alloc_inode();
     vfs_dentry_t *root_dentry=vfs_alloc_dentry();
-    root_dentry->ops=&iso_dentry_ops;
+    
     if(!root_inode||!root_dentry){printf("[ISO]:Fail to alloc root_inode!\n");return VFS_ALLOC_ERR;}
     root_inode->i_ops=&iso_inode_ops;
+    root_dentry->ops=&iso_dentry_ops;
     iso_dirent_t *iso_root_info=&volumn_info->main_vol->root_dir[0];
     //printf("root_lba:%d\n",iso_root_info->data_lba[0]);
     root_inode->inode_ptr=alloc_iso_inode_info;
@@ -375,6 +376,7 @@ int iso_mount(vfs_super_block_t*sb,kdevice_t*dev)
     list_append(&sb->inode_list,&root_inode->inode_elem);
     //printf("d");
     sb->root_dir=root_dentry;
+    sb->root_inode=&root_inode->inode_ptr;
     root_dentry->dir_file=&root_inode->inode_ptr;
     list_append(&sb->dentry_list,&root_dentry->dentry_elem);
     list_init(&root_dentry->file_elems);

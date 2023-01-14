@@ -11,6 +11,7 @@
 #include"gates/idt.h"
 #include"hardware/timer.h"
 #include"hardware/keyboard/keyboard.h"
+#include"hardware/mouse.h"
 #include"hardware/devices.h"
 #include"mem/page.h"
 #include"mem/memorylayout.h"
@@ -33,6 +34,8 @@
 #include"process/syscall.h"
 #include"kobjects/obj_serial.h"
 #include"hardware/framebuffer.h"
+#include"process/ipc/pipe.h"
+#include"fs/fs_fat32.h"
 #define VIDEO 0xB8000
 #define __DEBUG_FILE_SYSTEM 0
 extern circlequeue_t stdin_buf;
@@ -227,8 +230,44 @@ int kernelmain(uint32_t magic,uint32_t addr)
     device_add(device_create_framebuffer(0));
     device_add(device_create_ramdisk(0));
     device_add(device_create_kbd(0));
+    device_add(device_create_kmouse());
     init_syscall();
     device_enum2();
+    vfs_print_dir("/dev");
+    int ppfd[2]={0};
+    if(user_pipe(&ppfd)<0)
+    {
+        printf("CANNOT OPEN PIPE!\n");
+        while(1);
+    }
+    char bufpip[20];
+    if(ppfd[0]>=0&&ppfd[1]>=0)
+    {
+        printf("TEST PIPE! read:%d write:%d\n",ppfd[0],ppfd[1]);
+        memcpy(bufpip,"1234567890123456789",19);
+        sys_write(ppfd[1],bufpip,19);
+        memset(bufpip,0,19);
+        int e=sys_read(ppfd[0],bufpip,5);
+        printf("read 1st 5 bytes:%s %d\n",bufpip,e);
+        memset(bufpip,0,19);
+        e=sys_read(ppfd[0],bufpip,2);
+        printf("read 2nd 2 bytes:%s %d\n",bufpip,e);
+        memset(bufpip,0,19);
+        memcpy(bufpip,"abcd",4);
+        e=sys_write(ppfd[1],bufpip,4);
+        printf("write e:%d\n",e);
+        memset(bufpip,0,19);
+        sys_read(ppfd[0],bufpip,15);
+        printf("read 15:%s\n",bufpip);
+        // while (1)
+        // {
+        //     /* code */
+        // }
+        
+    }
+    vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
+    //while(1);
+    //InitPs2MouseDriver();
     int fd=sys_open("/dev/ramdisk0",O_RDWR);
     if(fd>=0)
     {

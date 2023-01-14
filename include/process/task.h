@@ -75,7 +75,7 @@ struct TCB_t{
 	uint32_t ticks_cnt;
 	uint32_t sleep_time;
 } TCB_t;
-
+#define FD_MAX 20
 typedef void * thread_function(void * args);       //定义线程的实际执行函数类型
 TCB_t*get_tcb(uint32_t pid);
 bool check_kern_stack_overflow(TCB_t* tcb_ptr);    

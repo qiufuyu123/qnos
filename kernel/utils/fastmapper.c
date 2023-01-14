@@ -1,5 +1,7 @@
 #include"utils/fastmapper.h"
 #include"mem/malloc.h"
+#include"hardware/devices.h"
+#include"console.h"
 slab_unit_t *array_slab;
 #define alloc_array alloc_in_slab_unit(array_slab);
 #define alloc_array_elem alloc_in_slab_unit(array_elem_slab);

@@ -104,5 +104,5 @@ typedef struct iso_inode_info
 }iso_inode_info_t;
 
 vfs_sb_ops_t *iso_getops();
-
+#pragma pack()
 #endif

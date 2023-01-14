@@ -21,7 +21,7 @@ typedef struct kconsole
     void(*putchr)(char c);
     void(*setcolor)(int bg,int fg);
     void(*setcurse)(int x,int y);
-    
+    void(*drawcurse)(int x,int y);
     int id;
     void(*cls)();
     uint32_t frame_buffer;

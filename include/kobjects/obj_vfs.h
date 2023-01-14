@@ -30,7 +30,7 @@ struct vfs_dentry;
 #define O_DRVONLY 0
 #define O_RDONLY 1
 #define O_WRONLY 1<<1
-#define O_RDWR 1<<2
+#define O_RDWR O_RDONLY|O_WRONLY
 #define O_APPEND 1<<3
 #define O_TRUNC 1<<4
 #define O_CREAT 1<<5
@@ -173,6 +173,8 @@ typedef struct vfs_super_block
     list_t inode_list;
     list_elem_t elem;
     kdevice_t *dev;
+    char *self_data;
+    uint32_t self_data_size;
 }vfs_super_block_t;
 
 typedef struct vfs_file_ops
@@ -194,6 +196,7 @@ struct vfs_file
     uint32_t lseek;
     uint32_t open_flag;
     uint32_t owner_ptr;//record sth about who opened this file
+    uint32_t ref_cnt;
 };
 extern inode_ops_t dev_ops;
 typedef struct vfs_file vfs_file_t;
@@ -203,15 +206,18 @@ extern list_t sb_list;
 extern vfs_super_block_t *root_sb;
 extern slab_unit_t *file_slab;
 extern vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
+extern slab_unit_t *sb_slab;
 int init_fslist();
 vfs_inode_t* vfs_alloc_inode();
 vfs_dentry_t* vfs_alloc_dentry();
 vfs_dir_elem_t *vfs_alloc_delem();
 vfs_file_t*vfs_alloc_file();
+int vfs_mount_subfs(int ops_idx,char *mount_path,char *dir_name,kdevice_t*target_dev);
 int init_vfs();
 void vfs_print_dir(char *path);
 vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void*elem);
 vfs_file_t *vfs_fopen(char *path,uint8_t flag);
+int vfs_add_fsops(vfs_sb_ops_t *ops);
 int sys_open(char *path,uint8_t flag);
 int sys_read(int fd,char *buffer,uint32_t size);
 int sys_mmap(void*starts,uint32_t length,int fd,int offset,int flag);
@@ -220,5 +226,6 @@ int sys_lseek(int fd,uint32_t offset,uint8_t base);
 int sys_tell(int fd);
 int sys_close(int fd);
 int kread_all(char *path,uint32_t *vaddr,int *pgnum);
+
 #endif
 #endif

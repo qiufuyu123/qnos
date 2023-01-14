@@ -39,7 +39,7 @@ void fastmapper_init(fastmapper_t*map,uint8_t unit);
 
 void *fastmapper_get(fastmapper_t*map,uint32_t id);
 
-int fastmapper_add_auto(fastmapper_t*map,uint32_t elem);
+int fastmapper_add_autoadd_auto(fastmapper_t*map,uint32_t elem);
 
 void *fastmapper_key_get(fastmapper_t*map,uint32_t key);
 

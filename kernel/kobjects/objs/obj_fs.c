@@ -16,8 +16,9 @@ slab_unit_t *inode_slab;
 slab_unit_t *dir_elem_slab;
 slab_unit_t *dentry_slab;
 slab_unit_t *file_slab;
- list_t sb_list;
- vfs_super_block_t *root_sb;
+slab_unit_t *sb_slab;
+list_t sb_list;
+vfs_super_block_t *root_sb;
  int pub__travel_dir_find(list_elem_t*elem,char * arg)
 {
     
@@ -40,7 +41,7 @@ vfs_dir_elem_t *pub_dentry_find(vfs_dentry_t *dir,char *name)
     return elem2entry(vfs_dir_elem_t,list_tag,elem);
 }
 //extern slab_unit_t *file_slab;
- vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM];
+vfs_sb_ops_t *fs_ops_list[FS_MAX_NUM]={0};
 vfs_inode_t *vfs_alloc_inode()
 {
     return alloc_in_slab_unit(inode_slab);
@@ -60,7 +61,7 @@ vfs_file_t*vfs_alloc_file()
 //#define vfs_alloc_file 
 int mount_root_sb()
 {
-    root_sb = kmalloc(sizeof(vfs_super_block_t));
+    root_sb = alloc_in_slab_unit(sb_slab);
     if (!root_sb)
         return -1;
     root_sb->disk_id = 0;
@@ -79,6 +80,7 @@ int init_vfs()
 
 int __get_inode_type(inode_handle file)
 {
+    if(!file)return -1;
     vfs_inode_t *inode = inode2ptr(file);
     if (inode->magic_num != INODE_MAGIC_NUM)
         return -1;
@@ -187,7 +189,7 @@ vfs_dentry_t* __search_dir(char *path)
             }
             else if(type==VFS_INODE_TYPE_DIR)
             {
-                // printf("%s is a dir:%x;",sub_path,d_elem->d_dir);
+                //printf("%s is a dir:%s 0x%x;",sub_path,d_elem->name,d_elem->d_dir);
                 if (!d_elem->d_dir)
                 {
                     d_elem->d_dir = __copy_dentry(cur_entry);
@@ -346,7 +348,7 @@ int __travel_dir_print(list_elem_t*elem,char * arg)
     //printf("Ttt");
     if(inode->magic_num!=INODE_MAGIC_NUM)
     {
-        printf("[VFS] Bad magic num!\n");
+        printf("[VFS] Bad magic num: %s\n",n_dir_elem->name);
         return 0;
         //return 1;
     }
@@ -364,8 +366,9 @@ int __travel_dir_print(list_elem_t*elem,char * arg)
 }
 void vfs_print_dir(char *path)
 {
-char *old_path=strdup(path);
+    char *old_path=strdup(path);
     vfs_dentry_t*dir= __search_dir(old_path);
+
     kfree(old_path);
     if(!dir)return NULL;
     //printf("pppppp");
@@ -442,14 +445,22 @@ int vfs_close(vfs_file_t *file)
     vfs_inode_t *inode = inode2ptr(file->content->file);
     if (inode->magic_num != INODE_MAGIC_NUM)
         return VFS_FORMAT_ERR;
-    
+    if(file->ref_cnt)
+    {
+        file->ref_cnt--;
+    }else
+    {
+        if(inode->refer_count)inode->refer_count--;
+    }
+    return 1;
 }
 vfs_file_ops_t file_ops = {
     .read = vfs_fread,
     .tell = vfs_tell,
     .lseek = vfs_lseek,
     .write = vfs_fwrite,
-    .mmap=vfs_mmap
+    .mmap=vfs_mmap,
+    .close=vfs_close
     };
 vfs_file_t *__vfs_check_reopen(vfs_dir_elem_t *elem)
 {
@@ -463,7 +474,18 @@ vfs_file_t *__vfs_check_reopen(vfs_dir_elem_t *elem)
 
     // fastmapper
 }
-
+int vfs_add_fsops(vfs_sb_ops_t *ops)
+{
+    for (int i = 0; i < FS_MAX_NUM; i++)
+    {
+        if(!fs_ops_list[i])
+        {
+            fs_ops_list[i]=ops;
+            return i;
+        }
+    }
+    return -1;
+}
 vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 {
     // int t;
@@ -512,7 +534,11 @@ int sys_read(int fd, char *buffer, uint32_t size)
         OUT_LOCK
         return VFS_NULL_OBJECT_ERR;
     }
-    
+    if(!f->open_flag&O_RDONLY)
+    {
+        OUT_LOCK
+        return VFS_PREMISSION_ERR;
+    }
     int r = f->ops->read(f, size, buffer);
     OUT_LOCK
     return r;
@@ -542,6 +568,11 @@ int sys_write(int fd, char *buffer, uint32_t size)
     {
         OUT_LOCK
         return VFS_NULL_OBJECT_ERR;
+    }
+    if(!(f->open_flag & O_WRONLY))
+    {
+        OUT_LOCK;
+        return VFS_PREMISSION_ERR;
     }
     int r = f->ops->write(f, size, buffer);
     OUT_LOCK
@@ -606,6 +637,37 @@ int sys_open(char *path, uint8_t flag)
         return VFS_ALLOC_ERR;
     return fd;
 }
+int vfs_mount_subfs(int ops_idx,char *mount_path,char *dirname,kdevice_t*target_dev)
+{
+    vfs_sb_ops_t *ops=fs_ops_list[ops_idx];
+    if(!ops)return -1;
+    vfs_super_block_t*re=alloc_in_slab_unit(sb_slab);
+    if(!re)return -1;
+    re->disk_id=0;
+    re->ops=ops;
+    list_init(&re->inode_list);
+    list_init(&re->dentry_list);
+    if(re->ops->fs_mount(re,target_dev)<0)
+    {
+        kfree(re);
+        return -1;
+    }
+    vfs_dir_elem_t*dir= vfs_mkvdir(mount_path,dirname,0);
+    if(!dir)
+    {
+        kfree(re);
+        return -1;
+    }
+    vfs_inode_t*old=inode2ptr(dir->file);
+    kfree(old);
+    kfree(dir->d_dir);
+    if(re->root_dir&&re->root_inode)
+    {
+        dir->file=re->root_inode;
+        dir->d_dir=re->root_dir;
+    }
+    return 1;
+}
 int init_fslist()
 {
     lock_init(&fs_lock);
@@ -613,7 +675,8 @@ int init_fslist()
     dentry_slab = alloc_slab_unit(sizeof(vfs_dentry_t), "vfs_dentry");
     dir_elem_slab = alloc_slab_unit(sizeof(vfs_dir_elem_t), "vfs_dir_elem");
     file_slab = alloc_slab_unit(sizeof(vfs_file_t), "vfs_file");
-    if (!inode_slab || !dentry_slab || !dir_elem_slab)
+    sb_slab=alloc_slab_unit(sizeof(vfs_super_block_t),"vfs_superblock");
+    if (!inode_slab || !dentry_slab || !dir_elem_slab||!sb_slab||!file_slab)
     {
         printf("[VFS]: Fail to alloc inode_slab or dentry_slab!\n");
         return -1;

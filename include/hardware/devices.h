@@ -15,6 +15,7 @@ enum
     KDEV_RAMDISK,
     KDEV_TTY,
     KDEV_KBD,
+    KDEV_MOUSE,
     KDEV_FB
 };
 
@@ -41,6 +42,7 @@ typedef struct kdevice_ops
 
 int device_init();
 void device_enum2();
+
 kdevice_t *device_create(char *name,char root_type,char type,int dev_id,kobject_t*hardware,uint32_t usize,
     kdevice_ops_t*ops,
     char *data,uint32_t extra_data_sz);

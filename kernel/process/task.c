@@ -56,7 +56,7 @@ static void  _init_main_thread(TCB_t * main_tcb){
 	tcb_buffer_addr->tid = thread_get_pid();        //主线程的编号为0 
 	fastmapper_add(&pid_mapper,main_tcb,0); 
 	//fastmapper_init(&tcb_buffer_addr->fd_list,20);
-	tcb_buffer_addr->fd_list=kmalloc(4*20);
+	tcb_buffer_addr->fd_list=kmalloc(4*FD_MAX);
 	tcb_buffer_addr->time_counter=0;
 	tcb_buffer_addr->time_left=TIME_CONT;
 	tcb_buffer_addr->task_status = TASK_RUNNING;
@@ -111,7 +111,7 @@ TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte){
 	TCB_t * tcb_buffer_addr = (TCB_t*)page_addr;
 	tcb_buffer_addr->tid = tid; 
 	//fastmapper_init(&tcb_buffer_addr->fd_list,20);
-	tcb_buffer_addr->fd_list=kmalloc(4*20);
+	tcb_buffer_addr->fd_list=kmalloc(4*FD_MAX);
 	if(!tcb_buffer_addr->fd_list)return 0;
 	fastmapper_add(&pid_mapper,tcb_buffer_addr,tid);        
 	tcb_buffer_addr->time_counter=0;
@@ -206,6 +206,18 @@ extern void intr_exit();
 // 	asm volatile ("iret");
 // }
 
+void _fork_cpy_fd(TCB_t*newtcb)
+{
+	for (int i = 0; i < FD_MAX; i++)
+	{
+		if(newtcb->fd_list[i])
+		{
+			((vfs_file_t*)newtcb->fd_list[i])->ref_cnt++;
+		}
+	}
+	
+}
+
 int user_fork()
 {
 	//printf("f1");
@@ -220,6 +232,13 @@ int user_fork()
 		return -1;
 	}
 	memcpy(new_tcb,old_tcb,4096*2);
+	new_tcb->fd_list=kmalloc(4*FD_MAX);
+	if(!new_tcb->fd_list)
+	{
+		kfree_page(new_tcb,2);
+		return -1;
+	}
+	memcpy(new_tcb->fd_list,old_tcb->fd_list,4*FD_MAX);
 	new_tcb->tid=thread_get_pid();
 	new_tcb->name=strsafecat(old_tcb->name,"_fork");
 	if(!new_tcb->name)
@@ -250,6 +269,7 @@ int user_fork()
 	//new_tcb->fork_mark=1;
 	//int e=0;
 	page_setup_pdt(old_tcb->pdt_vaddr);
+	_fork_cpy_fd(new_tcb);
 	sti();
 	return new_tcb->tid;
 }
@@ -579,7 +599,7 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 }
 int thread_add_fd(vfs_file_t* file)
 {
-	for (int i = 0; i < 20; i++)
+	for (int i = 0; i < FD_MAX; i++)
 	{
 		if(get_running_progress()->fd_list[i]==0)
 		{

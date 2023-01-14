@@ -70,5 +70,6 @@ vfs_file_t* create_stdin_file()
     vfs_file_t*f =vfs_alloc_file();
     if(!f)return NULL;
     f->ops=&stdin_ops;
+    f->open_flag=O_RDWR;
     return f;
 }

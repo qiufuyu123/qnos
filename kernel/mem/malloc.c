@@ -212,7 +212,7 @@ void free_in_slab_unit(uint32_t vaddr)
 }
 uint32_t kmalloc(uint32_t size)
 {
-    if(size>1024)return alloc_in_slab_unit(kslab_list[KSLAB_2048]);
+    if(size>1024&&size<=2048)return alloc_in_slab_unit(kslab_list[KSLAB_2048]);
     else if(size>512)return alloc_in_slab_unit(kslab_list[KSLAB_1024]);
     else if(size>256)return alloc_in_slab_unit(kslab_list[KSLAB_512]);
     else if(size>128)return alloc_in_slab_unit(kslab_list[KSLAB_256]);
@@ -233,6 +233,7 @@ uint32_t kcalloc(uint32_t size)
 }
 void kfree(uint32_t vaddr)
 {
+    if(!vaddr)return;
     free_in_slab_unit(vaddr);
 }
 bool init_kslab()
