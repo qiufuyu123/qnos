@@ -268,6 +268,13 @@ int kernelmain(uint32_t magic,uint32_t addr)
     vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
     //while(1);
     //InitPs2MouseDriver();
+
+    // while (1)
+    // {
+    //     uint32_t addr= kmalloc(512);
+    //     printf("ALLOC 512 BYTES:  0x%x\n",addr);
+    // }
+    
     int fd=sys_open("/dev/ramdisk0",O_RDWR);
     if(fd>=0)
     {

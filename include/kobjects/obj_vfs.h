@@ -50,6 +50,7 @@ enum
 enum{
     VFS_ALLOC_ERR=-20,
     VFS_FORMAT_ERR,
+    VFS_HARDLOAD_ERR,
     VFS_INODE_ERR,
     VFS_DENTRY_ERR,
     VFS_SB_ERR,
@@ -82,13 +83,7 @@ typedef struct vfs_dir_elem
     //     struct vfs_dentry *d_dir;
     //     struct vfs_file *d_file;
     // };
-    int ref_counter;
-    /**
-     * @brief REF_COUNTER
-     * This is a counter used to record how many file descriptions are
-     * related to this elem
-     * This is used in the release process 
-     */
+    
     list_elem_t list_tag;
 }vfs_dir_elem_t;
 typedef struct 
@@ -102,12 +97,13 @@ typedef struct vfs_dentry_ops
     vfs_dir_elem_t* (*find_dentry)(struct vfs_dentry *dir,char *name);
     int (*load_inode_dirs)(struct vfs_dentry*dir, inode_handle file);
     void (*delete_dentry)(struct vfs_dentry*dir,struct vfs_dentry *d_elem);
+    vfs_dir_elem_t* (*add_delem)(struct vfs_dentry* dir,char *fname);
     void (*release_dentry)(struct vfs_dentry*dir);
 }vfs_dentry_ops_t;
 typedef struct inode_ops
 {
     //inode_handle (*fs_open)(inode_handle parent_dir,uint32_t idx,uint32_t flag);
-    //int (*fs_close)(inode_handle file);
+    int (*fs_close)(inode_handle file);
     int (*fs_read)(inode_handle file,uint32_t size,void* buffer, uint32_t flag);
     int (*fs_write)(inode_handle file,uint32_t size,void* buffer, uint32_t flag);
     int (*fs_lseek)(inode_handle file,uint32_t source,uint32_t offset);
@@ -133,6 +129,7 @@ typedef struct vfs_inode
     inode_ops_t *i_ops;
     uint32_t inode_ptr;
     list_elem_t inode_elem;
+    struct vfs_inode *parent_inode;
 }vfs_inode_t;
 #define INODE_MAGIC_NUM 0x10DE
 

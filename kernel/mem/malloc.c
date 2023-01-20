@@ -139,7 +139,7 @@ slab_unit_t* clone_slab_unit(slab_unit_t * base)
     re->free_data=(uint32_t)re+sizeof(slab_unit_t)+1;
     re->next=0;
     kmem_elem_t*cur=re->free_data;
-    for (int j = 1; j <re->total_max_cnt-1 ; j++)
+    for (int j = 1; j <re->total_max_cnt; j++)
     {
         *(uint8_t*)(cur)=re->flag_sz;
         cur->next=(uint32_t)cur+re->unit_size+1;
@@ -156,12 +156,14 @@ uint32_t alloc_in_slab_unit(slab_unit_t* unit)
     while(cur->used_cnt>=cur->total_max_cnt)
     {
         //this slab is full
-        if(cur->next)cur=cur->next;
+        if(cur->next)
+            cur=cur->next;
         else
         {
             //we have to alloc a new one...
-            //printf("a new slab:(");
+            printf("a new slab:(");
             cur->next=clone_slab_unit(cur);
+            printf("[%d %d]\n",cur->total_max_cnt,cur->next->total_max_cnt);
             if(!cur->next)return 0;
             return alloc_in_slab_unit(cur->next);
         }
@@ -208,7 +210,7 @@ void free_in_slab_unit(uint32_t vaddr)
         }
         cur=cur->next;
     }
-    
+    printf("[WARNING][KFree]: Fail to locate resources!\n");
 }
 uint32_t kmalloc(uint32_t size)
 {

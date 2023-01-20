@@ -57,7 +57,7 @@ int main()
         if(!strcmp(buf,"ver"))
         {
             printlogo();
-            printf("\n[QNKERNEL Ver 0.3.9F Alpha 12/26/22]\n");
+            printf("\n[QNKERNEL Ver 0.3.10A 01/20/23]\n");
         }
         else if(!strcmp(buf,"cls"))
         {
@@ -109,6 +109,14 @@ int main()
         {
             ls_dir(buf+3);
         }
+        else if(!strncmp(buf,"new",3))
+        {
+            char *fname=&buf[4];
+            int fd=open(fname,O_CREAT|O_RDWR);
+            write(fd,"123123",6);
+            close(fd);
+
+        }
         else if(!strncmp(buf,"exe",3))
         {
             char is_wait=1;
@@ -124,6 +132,29 @@ int main()
                 while(1);//This line will never be executed!
             }
             if(is_wait)wait();
+        }
+        else if(!strncmp(buf,"read",4))
+        {
+            char *fname=&buf[5];
+            int fd=open(fname,O_RDONLY);
+            printf("[SHELL]:Read: %s , fd:%d\n",fname,fd);
+            char buff[100];
+            int e=read(fd,buff,100);
+            printf("%s\n[READ OK:%d]\n",buff,e);
+            e=close(fd);
+            printf("[READ CLOSE:%d %d]\n",e,fd);
+        }else if(!strncmp(buf,"write",5))
+        {
+            char *fname=&buf[6];
+            int fd=open(fname,O_RDWR);
+            printf("[SHELL]:Write: %s , fd:%d\n",fname,fd);
+            lseek(fd,0,SEEK_END);
+            char buff[100];
+            memcpy(buff,"THIS IS TEST SYS_WRITE!!\n",25);
+            int e=write(fd,buff,25);
+            //printf("%s\n[WRITE OK:%d]\n",buf,e);
+            e=close(fd);
+            printf("[READ CLOSE:%d %d]\n",e,fd);
         }
         else printf("\n[%s] <-- unknown command!\n",buf);
         //while(1);

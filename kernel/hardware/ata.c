@@ -4,6 +4,7 @@
 #include"gates/irq.h"
 #include"hardware/timer.h"
 #include"console.h"
+#include"string.h"
 #include"hardware/devices.h"
 volatile unsigned static char ide_irq_invoked = 0;
 unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -901,13 +902,30 @@ int ide_dev_write(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int fl
    return ide_ata_access(ATA_WRITE,self->dev_id,addr,num,buffer);
    //if(self->type==KDEV_ATAPI)return ide_atapi_read(self->dev_id,addr,num,buffer);
 }
+char *zeros=0;
+int ide_dev_zero(struct kdevice *self,uint32_t addr,uint32_t num,uint32_t flag)
+{
+   printf("zeros self:%x",self);
+   while (num--)
+   {
+      ide_ata_access(ATA_WRITE,self->dev_id,addr,1,zeros);
+      addr++;
+   }
+   return 1;
+   
+}
 kdevice_ops_t ata_dev_ops={
    .read=ide_dev_read,
-   .write=ide_dev_write
+   .write=ide_dev_write,
+   .zeros=ide_dev_zero
 };
 void ide_initialize(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3,
 unsigned int BAR4) {
- 
+   zeros=kmalloc(512);
+   if(zeros)
+   {
+      memset(zeros,0,512);
+   }
    int j, k, count = 0;
    register_interrupt_handler(IRQ14,ide_irq);
    register_interrupt_handler(IRQ15,ide_irq);

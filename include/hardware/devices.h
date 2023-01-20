@@ -34,6 +34,7 @@ typedef struct kdevice
 }kdevice_t;
 typedef struct kdevice_ops
 {
+    int (*zeros)(struct kdevice *self,uint32_t addr,uint32_t num,uint32_t flag);
     int(*mmap)(struct kdevice*self, void*starts,uint32_t length,int offset,int flag);
     int(*read)(struct kdevice *self, uint32_t addr,uint32_t num,char *buffer,int flag);
     int(*write)(struct kdevice *self, uint32_t addr,uint32_t num,char *buffer,int flag);

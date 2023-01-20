@@ -75,7 +75,7 @@ typedef struct fat_dir_desc
 typedef struct fat_dir_desc fat_dir_desc_t;
 typedef struct 
 {
-    uint32_t data[512/4];
+    uint32_t *data;
     uint32_t start_cluster;
 }fat_fattable_cache_t;
 typedef struct 
@@ -83,6 +83,8 @@ typedef struct
     uint32_t size_byte;
     char *buffer;
     uint32_t fst_fat;
+    uint32_t lst_fat;
+    uint32_t dir_offset;
     char pg_nd;
 }fat_file_cache_t;
 
@@ -91,9 +93,10 @@ typedef struct fat_data
     fat32_bpb_t bpb;
     fat_fs_info_t fs_info;
     fat_fattable_cache_t *cache_list;
+    uint32_t max_cluster_num;
 }fat_data_t;
 
-#define FAT_CACHE_MAX 3
+//#define FAT_CACHE_MAX 3
 vfs_sb_ops_t *fat_getops();
 #pragma pack()
 #endif

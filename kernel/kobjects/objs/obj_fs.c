@@ -218,7 +218,7 @@ vfs_dentry_t* __search_dir(char *path)
     }
     return cur_entry;
 }
-vfs_dir_elem_t *__search_file_elem(char *path)
+vfs_dir_elem_t *__search_file_elem(char *path,vfs_dentry_t **last,char **lst_name)
 {
     int t_cnt = 0;
     int len = strlen(path);
@@ -244,8 +244,16 @@ vfs_dir_elem_t *__search_file_elem(char *path)
         else
         {
             d_elem = pub_dentry_find(cur_entry, sub_path);
+            
             if (!d_elem)
-            {
+            {   
+                if(__travel_path(path,&t_cnt,len)==__CHAR_NONE)
+                {
+                    *last=cur_entry;
+                    *lst_name=sub_path;
+                    return 0;
+                }
+                *last=0;
                 printf("Cant find sub_dir(file):%s %s;",path, sub_path);
                 return 0;
             }
@@ -402,7 +410,6 @@ vfs_dir_elem_t* vfs_mkvdir(char *root_path,char *name,void* elem)
     }
     
     n_dir_elem->name=name_buf;
-    n_dir_elem->ref_counter=0;
     vfs_inode_t*inode=vfs_alloc_inode();
     inode->file_type=elem?VFS_INODE_TYPE_FILE: VFS_INODE_TYPE_DIR;
     inode->v_type=VFS_INODE_VTYPE_DEV;
@@ -440,6 +447,7 @@ int vfs_lseek(vfs_file_t *file, uint32_t offset, uint32_t source)
     file->lseek=inode->seek_offset;
     return 0;
 }
+//int vfs_clean_file(vfs_file)
 int vfs_close(vfs_file_t *file)
 {
     vfs_inode_t *inode = inode2ptr(file->content->file);
@@ -448,9 +456,31 @@ int vfs_close(vfs_file_t *file)
     if(file->ref_cnt)
     {
         file->ref_cnt--;
-    }else
+    }
+    else
     {
-        if(inode->refer_count)inode->refer_count--;
+        //Clean vfs_file
+        /**
+         * WARNING:
+         * DO NOT free file->context
+         * Since it is a pointer 
+        */
+        kfree(file);
+        if(inode->refer_count>1)
+        {
+            inode->refer_count--;
+        }
+        /**
+         * 
+         * TODO: Finish free strategy of inodes
+        */
+        // else
+        // {
+        //     int r= inode->i_ops->fs_close(&inode->inode_ptr);
+        //     list_remove(&inode->inode_elem);
+        //     kfree(inode);
+        //     return r;
+        // }
     }
     return 1;
 }
@@ -492,11 +522,24 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     IN_LOCK
     //printf("vfs:%s",path);
     //printf("s0s0s0s0");
-    vfs_dir_elem_t *d_elem = __search_file_elem(path);
+    vfs_dentry_t*lst=0;
+    char *fname;
+    vfs_dir_elem_t *d_elem = __search_file_elem(path,&lst,&fname);
     if (!d_elem)
     {
-        OUT_LOCK
-        return 0;
+        if (!(flag&O_CREAT) || !lst||!fname)
+        {
+            OUT_LOCK
+            return 0;
+        }
+        printf("VFS:Creating file:%s %x",fname,lst->ops->add_delem);
+        d_elem=lst->ops->add_delem(lst,fname);
+        if(!d_elem)
+        {
+            OUT_LOCK
+            return 0;
+        }
+        
     }
     //printf("s1s1s1s1");
     // uint32_t reopen=__vfs_check_reopen(d_elem);
@@ -515,9 +558,11 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     f->owner_ptr = get_running_progress();
     f->open_flag = flag;
     f->ops = &file_ops;
+    printf("ADDING FILE:0x%x 0x%x 0x%x 0x%x",&f->ops->close,f->ops->close,&f->ops->read,f->ops->read);
     f->lseek = 0;
-    // f->ref_count=1;
-    d_elem->ref_counter++;
+    f->ref_cnt=0;
+    vfs_inode_t*inode=inode2ptr(d_elem->file);
+    inode->refer_count++;
     OUT_LOCK
     return f;
 }
@@ -611,7 +656,20 @@ int sys_lseek(int fd, uint32_t offset, uint8_t base)
 }
 int sys_close(int fd)
 {
-
+    if (fd < 0)
+        return VFS_BAD_ARG_ERR;
+    IN_LOCK
+    vfs_file_t *f = thread_get_fd(fd);
+    if (!f)
+    {
+        OUT_LOCK
+        return VFS_NULL_OBJECT_ERR;
+    }
+    printf("SYS+CLOASE 0x%x 0x%x 0x%x 0x%x",&f->ops->close,f->ops->close,&f->ops->read,f->ops->read);
+    int r = f->ops->close(f);
+    get_running_progress()->fd_list[fd]=0;
+    OUT_LOCK
+    return r;
 }
 int sys_open(char *path, uint8_t flag)
 {

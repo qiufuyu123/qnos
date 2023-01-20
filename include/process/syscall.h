@@ -16,7 +16,9 @@ enum QNFileOperate
     FOP_OPEN,
     FOP_READ,
     FOP_CLOSE,
-    FOP_MMAP
+    FOP_MMAP,
+    FOP_WRITE,
+    FOP_SEEK,
 };
 enum QNSyscall
 {

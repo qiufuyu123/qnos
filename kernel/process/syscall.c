@@ -59,8 +59,10 @@ int syscall_foperate(int v1,int v2,int v3,int v4)
         return sys_open(v2,v3);
     }
     else if(v1==FOP_READ)return sys_read(v2,v3,v4);
-    else if(v1==FOP_CLOSE)return sys_close(v1);
+    else if(v1==FOP_CLOSE)return sys_close(v2);
     else if(v1==FOP_MMAP)return sys_mmap(v2,v3,arg->v1,arg->v2,arg->v3);
+    else if(v1==FOP_WRITE)return sys_write(v2,v3,v4);
+    else if(v1==FOP_SEEK)return sys_lseek(v2,v3,v4);
 }
 
 int syscall_gets(char *buf,int size,int v3,int v4)
