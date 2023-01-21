@@ -1,7 +1,7 @@
 #include"process/ipc/pipe.h"
 #include"process/task.h"
 #include"mem/malloc.h"
-#define PIPE_SIZE 20
+#define PIPE_SIZE 4000
 typedef struct 
 {
     int left;
@@ -13,14 +13,18 @@ slab_unit_t *kpipe_slab=0;
 int pipe_write(struct vfs_file*file,uint32_t size,uint8_t *buffer)
 {
     kpipe_content_t *kp=file->content;
-    if(!kp)return -1;
-    if(kp->right==kp->left)return -1;//Full
+    if(!kp)
+        return VFS_NULL_OBJECT_ERR;
+    if(kp->right==kp->left)
+        return VFS_FULL_ERR;//Full
     if(PIPE_SIZE-kp->right<size)
     {
         int rem=size-(PIPE_SIZE-kp->right);
-        if(kp->right<kp->left)return -1;
+        if(kp->right<kp->left)
+            return -1;
         //if(kp->left==0&&rem)return -1;
-        if(kp->left<rem)return -1;
+        if(kp->left<rem)
+            return -1;
         memcpy(kp->buf+kp->right,buffer,PIPE_SIZE-kp->right);
         buffer+=PIPE_SIZE-kp->right;
         size-=PIPE_SIZE-kp->right;
@@ -40,22 +44,26 @@ int pipe_write(struct vfs_file*file,uint32_t size,uint8_t *buffer)
 int pipe_read(struct vfs_file*file,uint32_t size,uint8_t *buffer)
 {
     kpipe_content_t *kp=file->content;
-    if(!kp)return -1;
+    if(!kp)
+        return -1;
     if(kp->right>kp->left)
     {
-        if(size>kp->right-kp->left-1)return -1;
+        if(size>kp->right-kp->left-1)
+            size=kp->right-kp->left-1;
         memcpy(buffer,kp->buf+kp->left+1,size);
         kp->left+=size;
-        return 1;
+        return size;
     }else
     {
         int rem=PIPE_SIZE-kp->left-1;
-        if(rem+kp->right<size)return -1;
+        if(rem+kp->right<size)
+            size=rem+kp->right;
+        uint32_t old=size;
         if(size<=rem)
         {
             memcpy(buffer,kp->buf+kp->left+1,size);
             kp->left+=size;
-            return 1;
+            return old;
         }else
         {
             memcpy(buffer,kp->buf+kp->left+1,rem);
@@ -63,7 +71,7 @@ int pipe_read(struct vfs_file*file,uint32_t size,uint8_t *buffer)
             buffer+=rem;
             memcpy(buffer,kp->buf,size);
             kp->left=size-1;
-            return 1;
+            return old;
         }
     }
 }
@@ -76,6 +84,7 @@ int pipe_close(vfs_file_t*file)
     }
     kpipe_content_t *pp=file->content;
     kfree(file);
+    
     if(pp->ref)
     {
         pp->ref--;
@@ -119,6 +128,7 @@ vfs_file_t *create_kpipe()
     kp->right=1;
     return re;
 }
+
 
 int user_pipe(int *fd)
 {

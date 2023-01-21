@@ -109,7 +109,7 @@ int thread_add_fd(vfs_file_t* file);
 void thread_add_child(TCB_t*parent,TCB_t*child);
 
 void thread_die(TCB_t*target_thread);
-
+int user_dup(int oldfd,int newfd);
 vfs_file_t* thread_get_fd(int id);
 void active_task(TCB_t *task);
 void user_exit();     //线程结束函数 关闭中断->移出执行链表->回收内存空间->开启中断

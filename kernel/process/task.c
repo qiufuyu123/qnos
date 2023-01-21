@@ -18,6 +18,8 @@
 #define FORK_COPY_MARK 2
 #define __DEBUG_FILE_SYSTEM 0
 uint32_t main_esp;
+extern int log_fd[2];
+extern int log_key_fd[2];
 TCB_t main_TCB;    //内核主线程TCB
 TCB_t* cur_tcb;
 bitmap_t kpid_map;
@@ -516,7 +518,8 @@ TCB_t *create_user_thread(char *path)
 		return NULL;
 	}
 	#ifdef __DEBUG_FILE_SYSTEM
-	new_tcb->fd_list[0]=create_stdin_file();
+	new_tcb->fd_list[0]=thread_get_fd(log_key_fd[0]);
+	new_tcb->fd_list[1]=thread_get_fd(log_fd[1]);
 	//else new_tcb->fd_list[0]=get_running_progress()->fd_list[0];
 	#endif
 	//new_tcb->is_kern_thread=1;
@@ -718,6 +721,47 @@ int schedule(){
 	switch_to(_schedule_now,_schedule_next);  
 	
 }
+
+int copy_fd(int fd)
+{
+	vfs_file_t*f= thread_get_fd(fd);
+	if(!f)
+		return -1;
+    int n=thread_add_fd(f);
+	if(n<0)
+		return -1;
+	f->ref_cnt++;
+	return n;
+}
+
+
+int user_dup(int oldfd,int newfd)
+{
+	if(oldfd==newfd)
+		return oldfd;
+	if(newfd==-1)
+	{
+		newfd=copy_fd(oldfd);
+		return newfd;
+	}else
+	{
+		int tmp=copy_fd(oldfd);
+		if(tmp<0)
+			return -1;
+		if(thread_get_fd(newfd))
+		{
+			if(sys_close(newfd)<0)
+			{
+				get_running_progress()->fd_list[tmp]=0;
+				return -1;
+			}
+		}
+		get_running_progress()->fd_list[newfd]=get_running_progress()->fd_list[tmp];
+		get_running_progress()->fd_list[tmp]=0;
+		return newfd;
+	}
+}
+
 void thread_add_child(TCB_t*parent,TCB_t*child)
 {
 	child->parent_thread=parent;

@@ -58,7 +58,8 @@ enum{
     VFS_LBA_ERR,
     VFS_SIZE_ERR,
     VFS_PREMISSION_ERR,
-    VFS_BAD_ARG_ERR
+    VFS_BAD_ARG_ERR,
+    VFS_FULL_ERR
 };
 
 

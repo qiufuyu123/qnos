@@ -53,5 +53,5 @@ int sprintf(char * str, const char *fmt, ...);
 void printhex(uint32_t *vaddr,uint32_t num);
 #define ASSERT(expr,info) if(!(expr)){printf("PANIC:ASSERT ERROR!\nINFO %s\n",info);while(1);}
 #define ASSERT(expr) if(!(expr)){printf("PANIC:ASSERT ERROR!\n");while(1);}
-#define PANIC(info)printf(info);while(1);
+#define PANIC(info)do{printf(info);while(1);}while(0)
 #endif

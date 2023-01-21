@@ -2,6 +2,7 @@
 #include"string.h"
 #include<stdarg.h>
 #include"usyscall.h"
+#include"fcntl.h"
 /*
 *功能：整型(int) 转化成 字符型(char)
 *注意：不用 % / 符号的话，只能正确打印:0...9的数字对应的字符'0'...'9'
@@ -346,7 +347,9 @@ int printf(char *str,...)
     char buf[100]={0};
     val= vsprintf(buf, str, args);
     va_end(args);
-    __base_syscall(SYSCALL_PRINTF,buf,0,0,0);
+    write(1,buf,100);
+    //__base_syscall(SYSCALL_PRINTF,buf,0,0,0);
+    
     return val;
 }
 char getch()
@@ -355,8 +358,18 @@ char getch()
 }
 char *gets_s(char*str,int len)
 {
-    __base_syscall(SYSCALL_GETS,str,len,0,0);
-    return str;
+    char *old=str;
+    while (len--)
+    {
+        while(read(0,str,1)!=1);
+        if(*str=='\n')
+        {
+            *str='\0';
+            break;
+        }
+        str++;
+    }
+    return old;
 }
 char *gets(char*str)
 {

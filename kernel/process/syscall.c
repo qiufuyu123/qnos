@@ -7,6 +7,7 @@
 #include"hardware/keyboard/keyboard.h"
 #include"mem/memorylayout.h"
 #include"mem/page.h"
+#include"process/ipc/pipe.h"
 int *syscall_handles=0;
 
 int syscall_nop(int v1,int v2,int v3,int v4)
@@ -16,6 +17,10 @@ int syscall_nop(int v1,int v2,int v3,int v4)
 int syscall_printf(char *str)
 {
     printf("%s",str);
+}
+int syscall_dup(int v1,int v2,int v3,int v4)
+{
+    return user_dup(v1,v2);
 }
 char syscall_getch()
 {
@@ -121,6 +126,10 @@ int sys_wait(int v1,int v2,int v3,int v4)
 {
     user_wait();
 }
+int sys_pipe(int v1,int v2,int v3,int v4)
+{
+    return user_pipe(v1);   
+}
 void init_syscall()
 {
     //if(syscall_handles)return;
@@ -140,5 +149,7 @@ void init_syscall()
     syscall_handles[SYSCALL_SLEEP]=sys_sleep;
     syscall_handles[SYSCALL_MEMINFO]=sys_meminfo;
     syscall_handles[SYSCALL_WAIT]=sys_wait;
+    syscall_handles[SYSCALL_PIPE]=sys_pipe;
+    syscall_handles[SYSCALL_DUP]=syscall_dup;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

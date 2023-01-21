@@ -54,6 +54,7 @@ int main()
     {
         printf(">");
         gets_s(buf,39);
+        //while(1);
         if(!strcmp(buf,"ver"))
         {
             printlogo();
@@ -117,6 +118,39 @@ int main()
             close(fd);
 
         }
+        else if(!strncmp(buf,"pipe",4))
+        {
+            int test_pipe[2];
+            if(pipe(&test_pipe)<0)
+            {
+                printf("OpenPipeFail!\n");
+            }else
+            {
+                printf("PIPE WRITE:%d\n",write(1,"TEST WRITE TO kernel!\n",23));
+                int child=fork();
+                
+                if(child==0)
+                {
+                    char pbuf[20]={0};
+                    while (1)
+                    {
+                        if(read(test_pipe[0],pbuf,5))
+                        {
+                            printf("[CHILD]: Read 5 bytes from pipe: %s\n",pbuf);
+                            memset(pbuf,0,20);
+                        }
+
+                    }
+                    
+                }
+                write(test_pipe[1],"123456",6);
+                write(test_pipe[1],"7890",4);
+                // close(test_pipe[0]);
+                // close(test_pipe[1]);
+            }
+
+            
+        }
         else if(!strncmp(buf,"exe",3))
         {
             char is_wait=1;
@@ -150,6 +184,7 @@ int main()
             printf("[SHELL]:Write: %s , fd:%d\n",fname,fd);
             lseek(fd,0,SEEK_END);
             char buff[100];
+            
             memcpy(buff,"THIS IS TEST SYS_WRITE!!\n",25);
             int e=write(fd,buff,25);
             //printf("%s\n[WRITE OK:%d]\n",buf,e);

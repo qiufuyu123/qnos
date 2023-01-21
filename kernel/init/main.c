@@ -41,6 +41,8 @@
 extern circlequeue_t stdin_buf;
 lock_t test_lock;
 sysmodule_t*t_m;
+int log_fd[2];
+int log_key_fd[2];
 extern uint32_t kstart,kend;
 static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默认为128M
 	uint32_t max_addr=0;
@@ -53,26 +55,17 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 }
 void test_t1(void *args)
 {
-    // #ifdef __DEBUG_FILE_SYSTEM
-    // int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
-    // if(fd<0)
-    // {
-    //     printf("t1 open fail!\n");
-    //     while(1);
-    // }
-    // char buf[30];
-    // sys_read(fd,buf,3);
-    // printf("t1:read 3 bytes from 0:%s",buf);
-    // #endif
     
     while (1)
     {
         uint8_t c= keyboard_get_key();
         if(c)
         {
-            printf("%c",c);
-            //circlequeue_push(&stdin_buf,&c);
-            stdin_write(0,1,&c);
+            // printf("%c",c);
+            // //circlequeue_push(&stdin_buf,&c);
+            // stdin_write(0,1,&c);
+            Klogger->putchr(c);
+            sys_write(log_key_fd[1],&c,1);
         }
 
         /* code */
@@ -81,22 +74,17 @@ void test_t1(void *args)
 }
 void test_t2(void *args)
 {
-    #ifdef __DEBUG_FILE_SYSTEM
-    int fd=sys_open("/boot/sys/test.txt",O_RDONLY);
-    if(fd<0)
-    {
-        printf("t2 open fail!\n");
-        while(1);
-    }
-    char buf[30];
-    sys_lseek(fd,3,SEEK_SET);
-    sys_read(fd,buf,3);
-    printf("t2:read 3 bytes from 3:%s",buf);
-    while(1);
-    #endif
+    
+    char c;
+    int e=0;
+    char buf[100]={0};
     while (1)
     {
-        /* code */
+        if(sys_read(log_fd[0],buf,100))
+        {
+            printf("%s",buf);
+        }
+        memset(buf,0,100);
     }
 }
 int kernelmain(uint32_t magic,uint32_t addr)
@@ -134,8 +122,8 @@ int kernelmain(uint32_t magic,uint32_t addr)
     printf("\n\n");
     vfs_print_dir("/dev/");
     #endif
-    create_kern_thread("1",&test_t1,0);
-    create_kern_thread("2",&test_t2,0);
+    TCB_t *key_thread= create_kern_thread("1",&test_t1,0);
+    TCB_t*pipe_thread= create_kern_thread("2",&test_t2,0);
     //kobject_get_ops(KO_ATA_DEV)->open(0,0);
     //char *buf=kmalloc(2048);
     //printf("buf is %x\n",buf);
@@ -148,14 +136,6 @@ int kernelmain(uint32_t magic,uint32_t addr)
     // }
     // printf("==>\n");
     // kobject_get_ops(0)->write(0,"hihih",0,0);
-    //ata_init();
-    /*
-    char *str_test=kmalloc(20);
-    strcpy(str_test,"HELLO?!");
-    printf("%s\n",str_test);
-    kfree(str_test);
-    */
-    //
     fastmapper_t test_map;
     fastmapper_init(&test_map,10);
     fastmapper_add(&test_map,114514,5);
@@ -234,53 +214,22 @@ int kernelmain(uint32_t magic,uint32_t addr)
     init_syscall();
     device_enum2();
     vfs_print_dir("/dev");
-    int ppfd[2]={0};
-    if(user_pipe(&ppfd)<0)
-    {
-        printf("CANNOT OPEN PIPE!\n");
-        while(1);
-    }
-    char bufpip[20];
-    if(ppfd[0]>=0&&ppfd[1]>=0)
-    {
-        printf("TEST PIPE! read:%d write:%d\n",ppfd[0],ppfd[1]);
-        memcpy(bufpip,"1234567890123456789",19);
-        sys_write(ppfd[1],bufpip,19);
-        memset(bufpip,0,19);
-        int e=sys_read(ppfd[0],bufpip,5);
-        printf("read 1st 5 bytes:%s %d\n",bufpip,e);
-        memset(bufpip,0,19);
-        e=sys_read(ppfd[0],bufpip,2);
-        printf("read 2nd 2 bytes:%s %d\n",bufpip,e);
-        memset(bufpip,0,19);
-        memcpy(bufpip,"abcd",4);
-        e=sys_write(ppfd[1],bufpip,4);
-        printf("write e:%d\n",e);
-        memset(bufpip,0,19);
-        sys_read(ppfd[0],bufpip,15);
-        printf("read 15:%s\n",bufpip);
-        // while (1)
-        // {
-        //     /* code */
-        // }
-        
-    }
-    vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
-    //while(1);
-    //InitPs2MouseDriver();
 
-    // while (1)
-    // {
-    //     uint32_t addr= kmalloc(512);
-    //     printf("ALLOC 512 BYTES:  0x%x\n",addr);
-    // }
-    
+    vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
+    //InitPs2MouseDriver();
     int fd=sys_open("/dev/ramdisk0",O_RDWR);
     if(fd>=0)
     {
         sys_write(fd,"hello mem",10);   
     }
     ksleep(5000);
+    if(user_pipe(&log_fd[0])<0||user_pipe(&log_key_fd[0])<0)
+        PANIC("FAIL To load pipe for usertest.bin!");
+    pipe_thread->fd_list[log_fd[0]]=thread_get_fd(log_fd[0]);
+    key_thread->fd_list[log_key_fd[1]]=thread_get_fd(log_key_fd[1]);
+    printf("Creating usertest...\n");
+    printf("After sleep");
+    
     create_user_thread("/boot/sys/usertest.bin");
     //jump_usermode();
     //switch_to_user_mode();

@@ -36,6 +36,8 @@ enum QNSyscall
     SYSCALL_SLEEP,
     SYSCALL_MEMINFO,
     SYSCALL_WAIT,
+    SYSCALL_PIPE,
+    SYSCALL_DUP,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

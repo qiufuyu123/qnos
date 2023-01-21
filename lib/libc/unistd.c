@@ -31,3 +31,15 @@ void wait()
 {
     __base_syscall(SYSCALL_WAIT,0,0,0,0);
 }
+int pipe(int *fd)
+{
+   return __base_syscall(SYSCALL_PIPE,fd,0,0,0);
+}
+int dup2(int fd,int newfd)
+{
+    return __base_syscall(SYSCALL_DUP,fd,newfd,0,0);
+}
+int dup(int fd)
+{
+    return dup2(fd,-1);
+}
