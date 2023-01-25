@@ -106,11 +106,11 @@ int atoi(char* pstr)
         
         if(pstr == '\0') //判断指针是否为空
         {
-                return -1;
+            return -1;
         }
         while(((*pstr) == ' ') || ((*pstr) == '\n') || ((*pstr) == '\t') || ((*pstr) == '\b'))
         {
-                pstr++; //跳过前面的空格字符
+            pstr++; //跳过前面的空格字符
         }
         
         /*

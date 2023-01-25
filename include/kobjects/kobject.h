@@ -36,6 +36,7 @@ typedef struct kobject_operations
     uint32_t(*read)(uint32_t idx, void*buffer,uint32_t size,uint32_t flags);
     uint32_t(*open)(uint32_t val,uint32_t flags);
     uint32_t(*attrset)(uint32_t attr,uint32_t val);
+    uint32_t(*attrget)(uint32_t attr);
     uint32_t(*exfunc)(uint32_t v1,uint32_t v2,uint32_t v3,uint32_t v4);
 }kobject_operations_t;
 #define NONE_WRITE uint32_t non_write(uint32_t idx,uint32_t buffer,uint32_t sz,uint32_t flgs){return 0;}
@@ -59,6 +60,7 @@ typedef struct kobject
 void init_kobject();
 kobject_operations_t *kobject_get_ops(uint32_t type);
 kobject_t* create_kobject(uint32_t(*begin)(uint32_t val),uint32_t(*end)(),kobject_operations_t *op,char *name);
+kobject_t* kobject_find(char *name);
 void release_kobject(kobject_t*ko);
 
 

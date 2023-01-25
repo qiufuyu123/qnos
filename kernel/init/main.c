@@ -24,6 +24,7 @@
 #include"hardware/ata.h"
 #include"hardware/vga.h"
 #include"kobjects/obj_vfs.h"
+#include"kobjects/kobj_ktty.h"
 #include"process/sync.h"
 #include"utils/fastmapper.h"
 #include"process/symbol.h"
@@ -64,7 +65,7 @@ void test_t1(void *args)
             // printf("%c",c);
             // //circlequeue_push(&stdin_buf,&c);
             // stdin_write(0,1,&c);
-            Klogger->putchr(c);
+            printf("%c",c);
             sys_write(log_key_fd[1],&c,1);
         }
 
@@ -111,6 +112,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     device_init();
     threads_init();
     keyboard_init();
+    vga_enable_doubled();
     lock_init(&test_lock);
     printf("stage 1!");
     asm volatile("sti");//TODO: This code is necessary, but why?
@@ -216,12 +218,22 @@ int kernelmain(uint32_t magic,uint32_t addr)
     vfs_print_dir("/dev");
 
     vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
+    
+    
     //InitPs2MouseDriver();
     int fd=sys_open("/dev/ramdisk0",O_RDWR);
     if(fd>=0)
     {
         sys_write(fd,"hello mem",10);   
     }
+    kobject_t*ktty= kobject_find("ktty");
+    // if(ktty)
+    // {
+    //     uint8_t vs[4];
+    //     vs[0]=0;
+    //     vs[1]=1;
+    //     ktty->ops->attrset(TTY_SETXY,vs);
+    // }
     ksleep(5000);
     if(user_pipe(&log_fd[0])<0||user_pipe(&log_key_fd[0])<0)
         PANIC("FAIL To load pipe for usertest.bin!");

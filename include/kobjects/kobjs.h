@@ -5,6 +5,7 @@
 void init_kernel_obj();
 void init_stdio_obj();
 void init_all_objs();
+void init_ktty_obj();
 uint32_t stdin_write(struct vfs_file*file,uint32_t size,uint8_t *buffer);
 vfs_file_t* create_stdin_file();
 #endif

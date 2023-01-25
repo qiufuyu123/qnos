@@ -4,5 +4,5 @@
 #include"boot/multiboot.h"
 void init_vga(multiboot_info_t *mbi);
 extern uint32_t vga_width,vga_height;
-
+void vga_enable_doubled();
 #endif

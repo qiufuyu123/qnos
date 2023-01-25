@@ -16,6 +16,7 @@ typedef struct kconsole
 {
     void(*init)();
     void(*update)();
+    void(*flush)();
     void(*pause)();
     void(*putstr)(char *str);
     void(*putchr)(char c);

@@ -6,6 +6,7 @@ all:
 	-cd bar && make all
 	-cd gcat && make all
 	-cd ql && make all
+	-cd edit && make all
 clean:
 	-cd test && make clean
 	-cd ktty && make clean
@@ -13,3 +14,4 @@ clean:
 	-cd bar && make clean
 	-cd gcat && make clean
 	-cd ql && make clean
+	-cd edit && make clean

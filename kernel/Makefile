@@ -4,7 +4,7 @@ OBJS= boot/loader.o init/main.o gates/gdt.o gates/idt.o gates/interrupt.o io.o s
 	 mem/memorylayout.o mem/bitmap.o mem/page.o mem/pmm.o mem/vmm.o mem/malloc.o \
 	 process/task.o process/process.o process/sync.o process/symbol.o elf.o process/user_task.o process/syscall.o \
 	 process/ipc/pipe.o  \
-	 kobjects/kobject.o kobjects/objs/obj_kernel.o kobjects/objs/obj_serial.o kobjects/objs/obj_stdio.o kobjects/objs/obj_fs.o \
+	 kobjects/kobject.o kobjects/objs/obj_kernel.o kobjects/objs/obj_ktty.o kobjects/objs/obj_serial.o kobjects/objs/obj_stdio.o kobjects/objs/obj_fs.o \
 	 utils/fastmapper.o utils/qhash.o utils/qconfig.o utils/hashmap.o utils/circlequeue.o \
 	 fs/fs_iso9660.o fs/fs_fat32.o
 

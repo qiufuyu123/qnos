@@ -69,6 +69,7 @@ void init_all_objs()
     init_kernel_obj();
     //init_ata_obj();
     init_stdio_obj();
+    init_ktty_obj();
     //kobj_list[KO_KERNEL_DEV]->ops->write(0,"hihihi",0,0);
 }
 void init_kobject()
@@ -82,6 +83,20 @@ kobject_operations_t *kobject_get_ops(uint32_t type)
 {
     if(type>=KOBJ_MAX)return 0;
     return kobj_list[type]->ops;
+}
+kobject_t* kobject_find(char *name)
+{
+    for (int i = 0; i < KOBJ_MAX; i++)
+    {
+        if(!kobj_list[i])
+            return 0;
+        if(!strcmp(kobj_list[i]->name,name))
+        {
+            return kobj_list[i];
+        }
+    }
+    return 0;
+    
 }
 void release_kobject(kobject_t*ko)
 {

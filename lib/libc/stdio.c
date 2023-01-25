@@ -367,6 +367,13 @@ char *gets_s(char*str,int len)
             *str='\0';
             break;
         }
+        else if(*str=='\b')
+        {
+            *str='\0';
+            str--;
+            *str='\0';
+            str--;
+        }
         str++;
     }
     return old;
