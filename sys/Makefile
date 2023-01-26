@@ -7,6 +7,7 @@ all:
 	-cd gcat && make all
 	-cd ql && make all
 	-cd edit && make all
+	-cd init && make all
 clean:
 	-cd test && make clean
 	-cd ktty && make clean
@@ -15,3 +16,4 @@ clean:
 	-cd gcat && make clean
 	-cd ql && make clean
 	-cd edit && make clean
+	-cd init && make clean

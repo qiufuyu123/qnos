@@ -20,6 +20,12 @@ enum QNFileOperate
     FOP_WRITE,
     FOP_SEEK,
 };
+enum QNModuleOperate
+{
+    MOP_GET,
+    MOP_SETATTR,
+    MOP_GETATTR
+};
 enum QNSyscall
 {
     SYSCALL_NOP=0,
@@ -38,6 +44,7 @@ enum QNSyscall
     SYSCALL_WAIT,
     SYSCALL_PIPE,
     SYSCALL_DUP,
+    SYSCALL_MOP,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

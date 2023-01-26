@@ -8,7 +8,7 @@
 #include"mem/memorylayout.h"
 #include"mem/page.h"
 #include"process/ipc/pipe.h"
-int *syscall_handles=0;
+int syscall_handles[SYSCALL_NR]={0};
 
 int syscall_nop(int v1,int v2,int v3,int v4)
 {
@@ -54,6 +54,15 @@ int syscall_exit(int v1)
 {
     //printf("in syscall exit!");
     user_exit();
+}
+int syscall_moperate(int v1,int v2,int v3,int v4)
+{
+    if(v1==MOP_GET)
+        return kobject_find(v2);
+    else if(v1==MOP_SETATTR)
+        return ((kobject_t*)v2)->ops->attrset(v3,v4);
+    else if(v1==MOP_GETATTR)
+        return ((kobject_t*)v2)->ops->attrget(v3);
 }
 int syscall_foperate(int v1,int v2,int v3,int v4)
 {
@@ -133,7 +142,7 @@ int sys_pipe(int v1,int v2,int v3,int v4)
 void init_syscall()
 {
     //if(syscall_handles)return;
-    syscall_handles=kmalloc(SYSCALL_NR*4);
+    //syscall_handles=kmalloc(SYSCALL_NR*4);
     syscall_handles[SYSCALL_NOP]=syscall_nop;
     syscall_handles[SYSCALL_PRINTF]=syscall_printf;
     syscall_handles[SYSCALL_EXIT]=syscall_exit;
@@ -142,6 +151,7 @@ void init_syscall()
     //syscall_handles[SYSCALL_READ]=syscall_read;
     syscall_handles[SYSCALL_GETS]=syscall_gets;
     syscall_handles[SYSCALL_FOP]=syscall_foperate;
+    syscall_handles[SYSCALL_MOP]=syscall_moperate;
     syscall_handles[SYSCALL_FORK]=sys_fork;
     syscall_handles[SYSCALL_TEST_LIST_DIR]=sys_ls;
     syscall_handles[SYSCALL_EXEC]=sys_exec;

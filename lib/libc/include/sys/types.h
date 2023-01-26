@@ -7,5 +7,7 @@ typedef struct
     uint32_t height;
     uint32_t channel;
 }framebuffer_cfg_t;
+
+typedef uint32_t khandle_t;
 #define NAME_MAX 255
 #endif

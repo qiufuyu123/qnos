@@ -710,6 +710,7 @@ int vfs_mount_subfs(int ops_idx,char *mount_path,char *dirname,kdevice_t*target_
         kfree(re);
         return -1;
     }
+    printf("FINISH MOUNT");
     vfs_dir_elem_t*dir= vfs_mkvdir(mount_path,dirname,0);
     if(!dir)
     {

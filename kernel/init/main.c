@@ -42,8 +42,8 @@
 extern circlequeue_t stdin_buf;
 lock_t test_lock;
 sysmodule_t*t_m;
-int log_fd[2];
-int log_key_fd[2];
+int log_fd[2]={0};
+int log_key_fd[2]={0};
 extern uint32_t kstart,kend;
 static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默认为128M
 	uint32_t max_addr=0;
@@ -54,6 +54,7 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 	}
 	return max_addr;
 }
+//char pipe_inited=0;
 void test_t1(void *args)
 {
     
@@ -215,34 +216,28 @@ int kernelmain(uint32_t magic,uint32_t addr)
     device_add(device_create_kmouse());
     init_syscall();
     device_enum2();
-    vfs_print_dir("/dev");
-
+    //vfs_print_dir("/dev");
     vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
     
     
     //InitPs2MouseDriver();
-    int fd=sys_open("/dev/ramdisk0",O_RDWR);
-    if(fd>=0)
-    {
-        sys_write(fd,"hello mem",10);   
-    }
-    kobject_t*ktty= kobject_find("ktty");
+    // kobject_t*ktty= kobject_find("ktty");
     // if(ktty)
     // {
     //     uint8_t vs[4];
     //     vs[0]=0;
     //     vs[1]=1;
-    //     ktty->ops->attrset(TTY_SETXY,vs);
+    //     ktty->ops->attrset(TTY_SETXY,&vs[0]);
     // }
-    ksleep(5000);
+    
     if(user_pipe(&log_fd[0])<0||user_pipe(&log_key_fd[0])<0)
         PANIC("FAIL To load pipe for usertest.bin!");
     pipe_thread->fd_list[log_fd[0]]=thread_get_fd(log_fd[0]);
     key_thread->fd_list[log_key_fd[1]]=thread_get_fd(log_key_fd[1]);
     printf("Creating usertest...\n");
     printf("After sleep");
-    
-    create_user_thread("/boot/sys/usertest.bin");
+    ksleep(5000);
+    create_user_thread("/boot/sys/init.bin");
     //jump_usermode();
     //switch_to_user_mode();
     while(1)

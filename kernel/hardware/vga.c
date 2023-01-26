@@ -175,6 +175,15 @@ void vga_setcolor(int bbg,int ffg)
     vbg=bbg;
     vfg=ffg;
 }
+void vga_setcurse(uint8_t x,uint8_t y)
+{
+    cur_x=x*CHAR_W;
+    cur_y=y*CHAR_H;
+    if(cur_x>=vga_width || cur_y>=vga_height)
+    {
+        cur_x=cur_y=0;
+    }
+}
 kconsole_t vga_console={
     .cls=vga_cls,
     .id=1,
@@ -184,7 +193,7 @@ kconsole_t vga_console={
     .flush=vga_flush_buffer,
     .putstr=vga_printstr,
     .setcolor=vga_setcolor,
-    .setcurse=0,
+    .setcurse=vga_setcurse,
     .update=vga_updata
 };
 void vga_enable_doubled()

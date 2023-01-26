@@ -8,7 +8,7 @@ on i386 chips!
 2. Paging & Buddy & slab memory management
 3. Kernel Module Dynamic Loader(.so)
 4. Multitask & Schedule
-5. VFS Framework(iso9660 fatfs ...)
+5. VFS Framework(iso9660 fat32 ...)
 6. Devices enuming (in /dev directory)
 7. Basic user-programe library
 ## **What's the next?**

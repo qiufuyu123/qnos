@@ -4,6 +4,15 @@ include config.mk
 QEMUOPTS = -kernel build/kernel.elf -m 128M -S  -nographic
 tool:
 	cd tools && make all
+ifeq ('$(wildcard ./a.img)','')
+	@echo 'Cannot find `a.img`...'
+	@echo 'Trying to make one ...'
+	@dd if=/dev/zero of=./a.img bs=1024k count=20
+	@echo 'Make FS...'
+	@mkfs.vfat -F 32 a.img
+	@echo 'Making disk OK!'
+endif
+	
 all: sys
 	cd kernel && make -s
 qemu:

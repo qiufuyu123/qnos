@@ -182,7 +182,8 @@
         "framebuffer.h": "c",
         "ql.h": "c",
         "mouse.h": "c",
-        "fs_fat32.h": "c"
+        "fs_fat32.h": "c",
+        "kobj_ktty.h": "c"
     },
     
 }

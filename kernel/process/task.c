@@ -430,9 +430,15 @@ void task_ps()
 int user_exec(char*path)
 {
 	//1st load file
+
+	/**
+	 * Since we will remap the memory area
+	 * We have to dup a copy of old path 
+	*/
+	char *dup_path=strdup(path);
 	TCB_t*now=get_running_progress();
 	#ifdef __DEBUG_FILE_SYSTEM
-	int fd= sys_open(path,O_RDONLY);
+	int fd= sys_open(dup_path,O_RDONLY);
 	if(fd<0)return -1;
 	char *file_buf=kmalloc_page(3);
 	sys_read(fd,file_buf,4096*3);
@@ -440,7 +446,8 @@ int user_exec(char*path)
 	uint32_t func=0;
 	cli();
 	uint32_t r=elf_load_user(fd,now->pdt_vaddr);
-	if(r==0){
+	if(r==0)
+	{
 	QNBinary_t bhead;
 	func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t),&bhead);
 	for (int i = 0; i < 5; i++)
@@ -460,7 +467,6 @@ int user_exec(char*path)
 	#endif
 	//2nd remap it
 	vmm_remapcls_pages(now->pdt_vaddr,file_buf,3,0x80000000);
-	printf("resolved func addr:0x%x\n",func);
 	}else
 	{
 		func=r;
@@ -474,8 +480,10 @@ int user_exec(char*path)
 	*(now->kern_stack_top-5)=func;
 	//*(new_tcb->kern_stack_top-6)=0;//ret value
 	now->context.esp=now->kern_stack_top-6;
-	kfree(now->name);
-	now->name=strdup(look_for_filename(path));
+
+	//DO NOT FREE
+	//kfree(now->name);
+	now->name=strdup(look_for_filename(dup_path));
 	sti();
 	return 1;
 }
@@ -486,7 +494,7 @@ TCB_t *create_user_thread(char *path)
 	int fd= sys_open(path,O_RDONLY);
 	if(fd<0)return NULL;
 	char *file_buf=kmalloc_page(3);
-	sys_read(fd,file_buf,4096*3);
+	sys_read(fd,file_buf,4096*2);
 	int l=sys_tell(fd);
 	QNBinary_t bhead;
 	uint32_t func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t),&bhead);
@@ -504,7 +512,7 @@ TCB_t *create_user_thread(char *path)
 		return 0;
 	}
 	cli();
-	create_thread(look_for_filename(path),tid,_user_task_func,0,TCB_page,1,1,0,0);
+	create_thread(strdup(look_for_filename(path)),tid,_user_task_func,0,TCB_page,1,1,0,0);
 
 
 	//TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);

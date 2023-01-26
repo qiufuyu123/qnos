@@ -27,19 +27,6 @@ void testtt()
 }
 int main()
 {
-    __asm__ ("movl %%esp,%%eax\n\t" \
-    "pushl $0x23\n\t" \
-    "pushl %%eax\n\t" \
-    "pushfl\n\t" \
-    "pushl $0x1b\n\t" \
-    "pushl $1f\n\t" \
-    "iret\n\t" \
-    "1:\tmovl $0x23,%%eax\n\t" \
-    "movw %%ax,%%ds\n\t" \
-    "movw %%ax,%%es\n\t" \
-    "movw %%ax,%%fs\n\t" \
-    "movw %%ax,%%gs" \
-    :::"ax");
     int a;
     //asm volatile("int $0x80" : "=a" (a) : "a" (2), "b" ((int)4));
     char buf[40];
@@ -96,6 +83,10 @@ int main()
             memset(0x90000000,0xff,4096*10);
             //填充映射的空间
             //即 填充一部分显存
+        }
+        else if(!strcmp(buf,"test4"))
+        {
+            gotoxy(0,0);
         }
         else if(!strcmp(buf,"exit"))
         {

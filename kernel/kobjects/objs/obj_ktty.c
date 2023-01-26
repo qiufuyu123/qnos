@@ -4,14 +4,12 @@
 #include"kobjects/kobj_ktty.h"
 #include"string.h"
 kobject_t*ktty_instance;
-int ktty_setattr(uint32_t attr,uint32_t val)
+int ktty_setattr(uint32_t attr,uint8_t *val)
 {
     if(attr==TTY_SETXY)
     {
-        // uint8_t vs[4];
-        
-        // Klogger->setcurse(vs[0],vs[1]);
-        // printf("SET CURSE:%d %d",vs[0],vs[1]);
+        Klogger->setcurse(val[0],val[1]);
+        //printf("SET CURSE:%d %d",val[0],val[1]);
     }
     
 }
