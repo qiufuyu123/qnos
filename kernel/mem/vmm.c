@@ -299,3 +299,7 @@ void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t 
         page_u_map_set_pa(newpdt,new_vaddr+i*4096,paddr);//rebuild mapping for user
     }
 }
+int vmm_checkvalid(uint32_t vaddr)
+{
+    
+}

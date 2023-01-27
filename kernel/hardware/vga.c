@@ -6,6 +6,24 @@
 #include"mem/memorylayout.h"
 #include"mem/malloc.h"
 #include"io.h"
+int color_16[16]={
+    0x000000,
+    0x0000AA,
+    0X00AA00,
+    0X00AAAA,
+    0XAA0000,
+    0XAA00AA,
+    0xAA5500,
+    0xAAAAAA,
+    0x555555,
+    0x5555FF,
+    0x55FF55,
+    0X55ffff,
+    0xff5555,
+    0xff55ff,
+    0xffff55,
+    0xffffff
+};
 /**
  * @brief NOTE
  * Anyway....
@@ -97,11 +115,9 @@ void vga_putchar(char ch, uint32_t x, uint32_t y, uint32_t color) {
 }
 void vga_scroll_up()
 {
-    //Prevent scrolling while inputing(printing)...
-    cli();   
+    //Prevent scrolling while inputing(printing)...  
     memcpy(vga_buffer,vga_buffer+vga_width*CHAR_H,(vga_height-CHAR_H)*vga_width*4);
     memset(vga_buffer+vga_width*(vga_height-CHAR_H),0,vga_width*CHAR_H*4);
-    sti();
 }
 void vga_gen_puchar(char ch)
 {
@@ -123,6 +139,8 @@ void vga_gen_puchar(char ch)
             return;
         }else if(ch=='\n')
         {
+            int flg=load_eflags();
+            cli();
             cur_y+=CHAR_H;
             if(cur_y>=vga_height)
             {
@@ -130,6 +148,7 @@ void vga_gen_puchar(char ch)
                 vga_scroll_up();
             }
             cur_x=0;
+            store_eflags(flg);
             return;
         }else vga_putchar(ch,cur_x,cur_y,0xffffffff);
         cur_x+=CHAR_W;
@@ -140,9 +159,12 @@ void vga_gen_puchar(char ch)
         }
         if(cur_y>=vga_height)
         {
+            int flg=load_eflags();
+            cli();
             cur_x=0;
             cur_y-=CHAR_H;
             vga_scroll_up();
+            store_eflags(flg);    
         }
 }
 void vga_printstr(char *str)
@@ -233,4 +255,14 @@ void init_vga(multiboot_info_t *mbi)
     //vga_gen_puchar('e');
     //vga_printstr("hello vga!\n");
     //while(1);
+}
+void vga_setbgcolor_16(char c)
+{
+    if(c<16)
+        vbg=color_16[c];
+}
+void vga_setftcolor_16(char c)
+{
+    if(c<16)
+        vfg=color_16[c];
 }

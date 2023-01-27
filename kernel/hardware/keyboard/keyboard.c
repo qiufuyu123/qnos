@@ -31,6 +31,8 @@ static inline uint8_t inb(uint16_t port) {
 #define enter		'\n'
 #define delete		'\177'	 // 八进制表示字符,十六进制为'\x7f'
 
+#define nullkey '\0'
+
 /* 以上不可见字符一律定义为0 */
 #define char_invisible	0
 #define ctrl_l_char	char_invisible
@@ -121,7 +123,30 @@ static char keymap[][2] = {
 /* 0x37 */	{'*',	'*'},    	
 /* 0x38 */	{alt_l_char, alt_l_char},
 /* 0x39 */	{' ',	' '},		
-/* 0x3A */	{caps_lock_char, caps_lock_char}
+/* 0x3A */	{caps_lock_char, caps_lock_char},
+/* F1 */    {nullkey,nullkey},
+/* F2 */    {nullkey,nullkey},
+/* F3 */    {nullkey,nullkey},
+/* F4 */    {nullkey,nullkey},
+/* F5 */    {nullkey,nullkey},
+/* F6 */    {nullkey,nullkey},
+/* F7 */    {nullkey,nullkey},
+/* F8 */    {nullkey,nullkey},
+/* F9 */    {nullkey,nullkey},
+/* F10 0x44*/    {nullkey,nullkey},
+/* numlock 0x45*/{nullkey,nullkey},
+/* scroll lock 0x46*/{nullkey,nullkey},
+{nullkey,nullkey},
+{nullkey,nullkey},
+/*0x49*/{nullkey,nullkey},
+/*0x4a*/{nullkey,nullkey},
+/*0x4b*/{nullkey,nullkey},
+/*0x4c*/{nullkey,nullkey},
+/*0x4d*/{nullkey,nullkey},
+/*0x4e*/{nullkey,nullkey},
+/*0x4f*/{nullkey,nullkey},
+/*0x50*/{nullkey,nullkey}
+
 /*其它按键暂不处理*/
 };
 
@@ -138,7 +163,7 @@ void intr_keyboard_handler(registers_t reg) {
    bool caps_lock_last = caps_lock_status;
 
    bool break_code;
-   uint8_t scancode = inb(KBD_BUF_PORT);
+   uint16_t scancode = inb(KBD_BUF_PORT);
 
 /* 若扫描码是e0开头的,表示此键的按下将产生多个扫描码,
  * 所以马上结束此次中断处理函数,等待下一个扫描码进来*/ 
@@ -209,9 +234,19 @@ void intr_keyboard_handler(registers_t reg) {
 	 }
       }
       // 有可能此扫描码是2字节，高字节是0xe0，我们要抹去它
+      uint8_t mark=(scancode & 0xff00)>>8;
       uint8_t index = (scancode &= 0x00ff);  // 将扫描码的高字节置0,主要是针对高字节是e0的扫描码.
-      char cur_char = keymap[index][shift];  // 在数组中找到对应的字符
-   
+      char cur_char;
+      if(!mark)
+         cur_char = keymap[index][shift];  // 在数组中找到对应的字符
+      else if(mark==0xe0)
+      {
+         if(index==0x48)
+         {
+            cur_char=KEY_PGUP;
+            printf("PG_UP");
+         }
+      }
       /* 只处理ascii码不为0的键 */
       /*如果cur_char为0，根据目前keymap的定义，
       表示它们是操作控制键<ctrl>、<shift>、<alt>
@@ -223,7 +258,11 @@ void intr_keyboard_handler(registers_t reg) {
          {
 	         //put_char(cur_char,BLACK,WHITE);
 			 //printf("[%c]",cur_char);
-          current_key=cur_char;
+            current_key=cur_char;
+            if(mark)
+            {
+               circlequeue_push(&key_board_queue,"\0");
+            }
             circlequeue_push(&key_board_queue,&cur_char);
             thread_wakeup(blocked_thread);
          }
@@ -244,11 +283,32 @@ void intr_keyboard_handler(registers_t reg) {
 	 caps_lock_status = !caps_lock_status;
       }
    } else {
+         uint8_t mark=(scancode & 0xff00)>>8;
+         uint8_t index = (scancode &= 0x00ff);  // 将扫描码的高字节置0,主要是针对高字节是e0的扫描码.
+         char cur_char;
+         if(!mark)
+            cur_char = index;  // 在数组中找到对应的字符
+         else if(mark==0xe0)
+         {
+
+            if(index==0x49 || index==0x48)
+               index=KEY_PGUP;
+            else if(index==0x51 || index==0x50)
+               index=KEY_PGDOWN;
+            else if(index==0x4d)
+               index=KEY_RIGHT;
+            else if(index==0x4b)
+               index=KEY_LEFT;
+         }
          if(!circlequeue_full(&key_board_queue))
          {
 	         //put_char(cur_char,BLACK,WHITE);
-            current_key=scancode;
-            circlequeue_push(&key_board_queue,&scancode);
+            current_key=index;
+            if(mark)
+            {
+               circlequeue_push(&key_board_queue,"\0");
+            }
+            circlequeue_push(&key_board_queue,&index);
             thread_wakeup(blocked_thread);
          }
       //console_print_str("unknow key ");

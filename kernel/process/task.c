@@ -12,7 +12,9 @@
 #include"kobjects/kobjs.h"
 #include"gates/tss.h"
 #include"process/syscall.h"
+#include"process/ipc/pipe.h"
 #include"kelf.h"
+#include"io.h"
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
@@ -427,7 +429,48 @@ void task_ps()
 	}
 	
 }
-int user_exec(char*path)
+/**
+ * argv: char **
+ * char* --> uint32
+ * char** --> uint32 *
+*/
+int count_argv(uint32_t *argv)
+{
+	printf("COUNT:%x;",argv);
+	int cnt=0;
+	while (*argv)
+	{
+		argv++;
+		cnt++;
+	}
+	return cnt;
+	
+}
+void do_arg_copy(uint32_t *ori,int len,uint32_t base)
+{
+	if(!len)
+		return;
+	uint32_t data_base=base+len*4;
+	for (int i = 0; i < len; i++)
+	{
+		uint32_t addr=ori[i];
+		int l=strlen(addr)+1;
+		memcpy(data_base,addr,l);
+		ori[i]=data_base;
+		data_base+=l;
+	}
+	memcpy(base,ori,len*4);
+}
+int do_push_argv(uint32_t *argv,uint32_t base,uint32_t *stack)
+{
+	int len=count_argv(argv);
+	printf("arg len:%d",len);
+	do_arg_copy(argv,len,base);
+	*(--stack)=base;
+	*(--stack)=len;
+	return len;
+}
+int user_exec(char*path,uint32_t *argv)
 {
 	//1st load file
 
@@ -439,7 +482,8 @@ int user_exec(char*path)
 	TCB_t*now=get_running_progress();
 	#ifdef __DEBUG_FILE_SYSTEM
 	int fd= sys_open(dup_path,O_RDONLY);
-	if(fd<0)return -1;
+	if(fd<0)
+		return fd;
 	char *file_buf=kmalloc_page(3);
 	sys_read(fd,file_buf,4096*3);
 	int l=sys_tell(fd);
@@ -461,7 +505,6 @@ int user_exec(char*path)
 			page_u_map_set(now->pdt_vaddr, base+j*4096);
 		}
 		
-		
 	}
 	
 	#endif
@@ -476,8 +519,14 @@ int user_exec(char*path)
 	now->context.ebp=now->kern_stack_top;
 	*(now->kern_stack_top-6)=intr_exit;
 	*(now->kern_stack_top-3)=0x202;
-	*(now->kern_stack_top-2)=0xFFFFe000;
+	
 	*(now->kern_stack_top-5)=func;
+	uint32_t *next_stack=(uint32_t*)0xffffe000;
+	page_u_map_set(now->pdt_vaddr,0xfffff000);
+	do_push_argv(argv,0xfffff000,next_stack);
+	next_stack-=2;
+	*(--next_stack)=user_exit;
+	*(now->kern_stack_top-2)=next_stack;
 	//*(new_tcb->kern_stack_top-6)=0;//ret value
 	now->context.esp=now->kern_stack_top-6;
 
@@ -528,6 +577,8 @@ TCB_t *create_user_thread(char *path)
 	#ifdef __DEBUG_FILE_SYSTEM
 	new_tcb->fd_list[0]=thread_get_fd(log_key_fd[0]);
 	new_tcb->fd_list[1]=thread_get_fd(log_fd[1]);
+	pipe_bind(log_key_fd[0],new_tcb);
+	pipe_bind(log_fd[1],new_tcb);
 	//else new_tcb->fd_list[0]=get_running_progress()->fd_list[0];
 	#endif
 	//new_tcb->is_kern_thread=1;
@@ -564,10 +615,12 @@ TCB_t *create_user_thread(char *path)
 	#endif
 	page_setup_pdt(new_tcb->pdt_vaddr);
 	#ifdef __DEBUG_FILE_SYSTEM
-	*(--new_tcb->kern_stack_top)=func;
+	//*(--new_tcb->kern_stack_top)=func;
 	#else
 	*(--new_tcb->kern_stack_top)=0;
 	#endif
+	*(--new_tcb->kern_stack_top)=0;// b
+	*(--new_tcb->kern_stack_top)=1;// a
 	*(--new_tcb->kern_stack_top)=user_exit;
 	*(--new_tcb->kern_stack_top)=func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
@@ -797,10 +850,11 @@ void thread_die(TCB_t*target_thread)
 }
 
 void thread_wakeup(TCB_t * target_thread){
-    enum task_status_t restore_status = get_running_progress()->task_status;
-    cli();
-    target_thread->task_status = TASK_READY;
-    sti();
+    int eflg=load_eflags();
+	cli();
+	if(target_thread->task_status==TASK_BLOCKED)
+    	target_thread->task_status = TASK_READY;
+    store_eflags(eflg);
 }
 
 void remove_thread(TCB_t* tmp){

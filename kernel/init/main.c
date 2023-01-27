@@ -63,17 +63,23 @@ void test_t1(void *args)
         uint8_t c= keyboard_get_key();
         if(c)
         {
-            // printf("%c",c);
-            // //circlequeue_push(&stdin_buf,&c);
-            // stdin_write(0,1,&c);
             printf("%c",c);
             sys_write(log_key_fd[1],&c,1);
+        }else
+        {
+            c=keyboard_get_key();
+            if(c)
+            {
+                sys_write(log_key_fd[1],&"\0"[0],1);
+                sys_write(log_key_fd[1],&c,1);
+            }
         }
 
         /* code */
     }
     
 }
+extern char tty_attr_lock;
 void test_t2(void *args)
 {
     
@@ -82,9 +88,11 @@ void test_t2(void *args)
     char buf[100]={0};
     while (1)
     {
-        if(sys_read(log_fd[0],buf,100))
+        if(sys_read(log_fd[0],buf,100)>=0)
         {
             printf("%s",buf);
+            tty_attr_lock=0;
+            
         }
         memset(buf,0,100);
     }
@@ -216,7 +224,7 @@ int kernelmain(uint32_t magic,uint32_t addr)
     device_add(device_create_kmouse());
     init_syscall();
     device_enum2();
-    //vfs_print_dir("/dev");
+    vfs_print_dir("/boot/sys");
     vfs_mount_subfs(vfs_add_fsops(fat_getops()),"/","mounted",device_find("ata1"));
     
     
@@ -234,6 +242,8 @@ int kernelmain(uint32_t magic,uint32_t addr)
         PANIC("FAIL To load pipe for usertest.bin!");
     pipe_thread->fd_list[log_fd[0]]=thread_get_fd(log_fd[0]);
     key_thread->fd_list[log_key_fd[1]]=thread_get_fd(log_key_fd[1]);
+    pipe_bind(log_fd[0],pipe_thread);
+    pipe_bind(log_key_fd[1],key_thread);
     printf("Creating usertest...\n");
     printf("After sleep");
     ksleep(5000);

@@ -173,6 +173,8 @@ int iso_decode_fname(char *name)
     {
         if(name[i]==';')
         {
+            if(name[i-1]=='.')
+                name[i-1]='\0';   //If this file doesnt have extend name...
             name[i]='\0';
             return 1;
         }

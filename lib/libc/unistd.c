@@ -11,9 +11,9 @@ void ls_dir(char *dir)
 {
     __base_syscall(SYSCALL_TEST_LIST_DIR,dir,0,0,0);
 }
-void exec(char *path)
+int exec(char *path)
 {
-    __base_syscall(SYSCALL_EXEC,path,0,0,0);
+    return __base_syscall(SYSCALL_EXEC,path,0,0,0);
 }
 void ps()
 {

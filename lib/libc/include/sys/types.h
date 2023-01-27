@@ -9,5 +9,6 @@ typedef struct
 }framebuffer_cfg_t;
 
 typedef uint32_t khandle_t;
+#define KOBJ_ATTR_LOCK -2
 #define NAME_MAX 255
 #endif

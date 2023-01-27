@@ -2,6 +2,7 @@
 #include"usyscall.h"
 #include"stdio.h"
 #include"qnos.h"
+#include"fcntl.h"
 static khandle_t cur_console;
 uint32_t chk_obj()
 {
@@ -24,4 +25,20 @@ void gotoxy(int x,int y)
     curse[0]=x;
     curse[1]=y;
     qnkobject_setattr(cur_console,TTY_SETXY,&curse[0]);
+}
+char getch()
+{
+    char c=0;
+    while(read(0,&c,1)!=1);
+    return c;
+}
+void textcolor(char c)
+{
+    CHKOBJ(return);
+    qnkobject_setattr(cur_console,TTY_SETFC,&c);
+}
+void conlock(char c)
+{
+    CHKOBJ(return);
+    qnkobject_setattr(cur_console,TTY_ATTRLOCK,&c);
 }

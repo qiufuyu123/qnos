@@ -94,7 +94,7 @@ TCB_t* create_kern_thread(char *name,thread_function *func,void *args);
 
 void threads_init();    //线程模块初始化 需要把主线程加入运行表中
 TCB_t *create_user_thread(char *path);
-int user_exec(char*path);
+int user_exec(char*path,uint32_t *argv);
 void task_ps();
 TCB_t* create_TCB(uint32_t tid,uint32_t page_addr,uint32_t page_counte);
 void user_sleep(uint32_t us);

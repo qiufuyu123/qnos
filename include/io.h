@@ -10,6 +10,8 @@ static inline void
             : "d" (port), "0" (addr), "1" (cnt)
             : "memory", "cc");
     }
+void store_eflags(int flg);
+int load_eflags();
 static inline void insw(uint16_t port, void *addr, int cnt)
 {
   asm volatile("cld; rep insw" :

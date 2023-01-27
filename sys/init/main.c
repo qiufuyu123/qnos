@@ -7,7 +7,7 @@
 #include"fcntl.h"
 #include"conio.h"
 
-int main()
+int main(int a,int b)
 {
     __asm__ ("movl %%esp,%%eax\n\t" \
     "pushl $0x23\n\t" \
@@ -23,11 +23,13 @@ int main()
     "movw %%ax,%%gs" \
     :::"ax");
     printf("Load in init\n");
-    sleep(2000);
+     printf("ARGS:\n");
+    printf("a:%d b:%d\n",a,b);
+    sleep(4000);
     int e=fork();
     if(e==0)
     {
-        exec("/boot/sys/usertest.elf");
+        printf("EXEC RET:%d",exec("/boot/sys/usertest"));
         while (1)
         {
             /* code */

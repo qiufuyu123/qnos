@@ -1,6 +1,8 @@
 #include"process/ipc/pipe.h"
 #include"process/task.h"
 #include"mem/malloc.h"
+#include"console.h"
+#include"hardware/timer.h"
 #define PIPE_SIZE 4000
 typedef struct 
 {
@@ -8,8 +10,21 @@ typedef struct
     int right;
     int ref;
     char *buf;
+    vfs_file_t *matched_file;
 }kpipe_content_t;
 slab_unit_t *kpipe_slab=0;
+void pipe_remind(vfs_file_t*file)
+{
+    // printf("waking up (pipe) 0x%x 0x%x",file,file->content);
+    // kpipe_content_t*ct=file->content;
+    // if(ct->matched_file)
+    // {
+    //     printf("going to wakeup thread:[%s] ... ",((TCB_t*)ct->matched_file->owner_ptr)->name);
+    //     //ksleep(2000);
+    //     thread_wakeup(ct->matched_file->owner_ptr);
+    //     printf("Wakeok\n");
+    // }
+}
 int pipe_write(struct vfs_file*file,uint32_t size,uint8_t *buffer)
 {
     kpipe_content_t *kp=file->content;
@@ -32,11 +47,13 @@ int pipe_write(struct vfs_file*file,uint32_t size,uint8_t *buffer)
         rem=size;
         memcpy(kp->buf+kp->right,buffer,rem);
         kp->right+=rem;
+        pipe_remind(file);
     }else
     {
         memcpy(kp->buf+kp->right,buffer,size);
         kp->right+=size;
         if(kp->right==PIPE_SIZE)kp->right=0;
+        pipe_remind(file);
     }
     return 1;
 
@@ -52,6 +69,7 @@ int pipe_read(struct vfs_file*file,uint32_t size,uint8_t *buffer)
             size=kp->right-kp->left-1;
         memcpy(buffer,kp->buf+kp->left+1,size);
         kp->left+=size;
+        pipe_remind(file);
         return size;
     }else
     {
@@ -63,6 +81,7 @@ int pipe_read(struct vfs_file*file,uint32_t size,uint8_t *buffer)
         {
             memcpy(buffer,kp->buf+kp->left+1,size);
             kp->left+=size;
+            pipe_remind(file);
             return old;
         }else
         {
@@ -71,6 +90,7 @@ int pipe_read(struct vfs_file*file,uint32_t size,uint8_t *buffer)
             buffer+=rem;
             memcpy(buffer,kp->buf,size);
             kp->left=size-1;
+            pipe_remind(file);
             return old;
         }
     }
@@ -83,6 +103,11 @@ int pipe_close(vfs_file_t*file)
         return 1;
     }
     kpipe_content_t *pp=file->content;
+    if(pp->matched_file)
+    {
+        kpipe_content_t *pp2=pp->matched_file->content;
+        pp2->matched_file=0;
+    }
     kfree(file);
     
     if(pp->ref)
@@ -147,6 +172,17 @@ int user_pipe(int *fd)
     ((kpipe_content_t*)pp2->content)->ref++;
     fd[0]=thread_add_fd(pp);
     fd[1]=thread_add_fd(pp2);
-    
+    kpipe_content_t*ct1= pp->content;
+    kpipe_content_t*ct2= pp2->content;
+    ct1->matched_file=pp2;
+    ct2->matched_file=pp;
+    return 1;
+}
+int pipe_bind(int fd,TCB_t* task)
+{
+    vfs_file_t* f=thread_get_fd(fd);
+    if(!f)
+        return -1;
+    f->owner_ptr=task;
     return 1;
 }

@@ -31,6 +31,7 @@ clean:
 	cd tools && make clean
 	cd lib && make clean
 	-rm isodir/boot/sys/*.*
+	-rm isodir/boot/sys/* -rf
 	-rm isodir/boot/kernel.bin
 	-rm build/kernel.elf
 	-rm qnos.iso

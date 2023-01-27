@@ -183,7 +183,10 @@
         "ql.h": "c",
         "mouse.h": "c",
         "fs_fat32.h": "c",
-        "kobj_ktty.h": "c"
+        "kobj_ktty.h": "c",
+        "pipe.h": "c",
+        "qnos.h": "c",
+        "*.inc": "c"
     },
     
 }

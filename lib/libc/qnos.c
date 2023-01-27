@@ -7,7 +7,9 @@ khandle_t qnkobject_get(char *name)
 
 int qnkobject_setattr(khandle_t obj,uint32_t attr,uint32_t val)
 {
-    return __base_syscall(SYSCALL_MOP,MOP_SETATTR,obj,attr,val);
+    int r=0;
+    while((r=__base_syscall(SYSCALL_MOP,MOP_SETATTR,obj,attr,val))==KOBJ_ATTR_LOCK);
+    return r;
 }
 
 int qnkobject_getattr(khandle_t obj,uint32_t attr)

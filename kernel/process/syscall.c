@@ -120,7 +120,8 @@ void sys_ps(int v1,int v2,int v3,int v4)
 }
 int sys_exec(int v1,int v2,int v3,int v4)
 {
-    return user_exec(v1);
+    char *test[4]={"arg1","arg2","arg3",0};
+    return user_exec(v1,test);
 }
 int sys_sleep(int v1,int v2,int v3,int v4)
 {

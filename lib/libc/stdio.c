@@ -3,6 +3,7 @@
 #include<stdarg.h>
 #include"usyscall.h"
 #include"fcntl.h"
+#include"conio.h"
 /*
 *功能：整型(int) 转化成 字符型(char)
 *注意：不用 % / 符号的话，只能正确打印:0...9的数字对应的字符'0'...'9'
@@ -348,20 +349,30 @@ int printf(char *str,...)
     val= vsprintf(buf, str, args);
     va_end(args);
     write(1,buf,100);
+    conlock(1);
     //__base_syscall(SYSCALL_PRINTF,buf,0,0,0);
     
     return val;
 }
-char getch()
+char getchar()
 {
-    return __base_syscall(SYSCALL_GETCH,0,0,0,0);
+    char c=getch();
+    if(!c)
+    {
+        /* Control Character*/
+        getch();
+        return 0;
+    }
+    return c;
 }
 char *gets_s(char*str,int len)
 {
     char *old=str;
     while (len--)
     {
-        while(read(0,str,1)!=1);
+        *str=getchar();
+        if(!(*str))//Control Character
+            continue;
         if(*str=='\n')
         {
             *str='\0';

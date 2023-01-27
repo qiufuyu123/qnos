@@ -3,14 +3,26 @@
 #include"console.h"
 #include"kobjects/kobj_ktty.h"
 #include"string.h"
+#include"hardware/vga.h"
 kobject_t*ktty_instance;
+char tty_attr_lock=0;
 int ktty_setattr(uint32_t attr,uint8_t *val)
 {
+    if(attr==TTY_ATTRLOCK)
+    {
+        tty_attr_lock=*val;
+        return 1;
+    }
+    if(tty_attr_lock)
+        return TTY_LOCKED;
     if(attr==TTY_SETXY)
     {
         Klogger->setcurse(val[0],val[1]);
         //printf("SET CURSE:%d %d",val[0],val[1]);
-    }
+    }else if(attr==TTY_SETFC)
+        vga_setftcolor_16(val[0]);
+    else if(attr==TTY_SETBC)
+        vga_setbgcolor_16(val[0]);
     
 }
 int ktty_getattr(uint32_t attr)
