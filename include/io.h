@@ -71,7 +71,8 @@ static inline void cli()
 {
     asm volatile("cli");
 }
-
+#define _IO_ATOMIC_IN int __flg__=load_eflags();cli();
+#define _IO_ATOMIC_OUT SAFE_MACRO(store_eflags(__flg__);)
 #define ICW1_BIT4	0x10	/* must be set */
 #define ICW1_LTIM	0x08	/* level triggered mode (0 for edge) */
 #define ICW1_ADI	0x04	/* call address interval:4 (0 for 8) */

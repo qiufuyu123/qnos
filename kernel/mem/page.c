@@ -212,6 +212,7 @@ page_directory_t *page_clone_cleaned_page()
 }
 bool page_chk_user(page_directory_t*updt,uint32_t vaddr)
 {
+    vaddr &= 0xfffff000;
     vaddr/=4096;
     int idx=vaddr/1024;
     if(updt->ptable[idx])

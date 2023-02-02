@@ -11,4 +11,6 @@ void wait();
 int pipe(int *fd);
 int dup(int fd);
 int dup2(int fd,int newfd);
+int brk(void *addr);
+void* sbrk(int increasement);
 #endif

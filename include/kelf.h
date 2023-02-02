@@ -71,7 +71,7 @@ void *elf_module_entry(elf_module *m);
 //获取函数地址
 void *elf_module_sym(elf_module *m, const char *name);
 void elf_module_release(elf_module *m);
-int elf_load_user(int fd,page_directory_t *pdt);
+int elf_load_user(int fd,page_directory_t *pdt,uint32_t *end);
 // elf_check 返回结果
 #define ELF_CHECK_OK 0
 #define ELF_CHECK_ERR_LENGTH -1

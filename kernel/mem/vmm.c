@@ -1,6 +1,7 @@
 #include"mem/vmm.h"
 #include"console.h"
 #include"string.h"
+#include"io.h"
 #include"mem/memorylayout.h"
 /**
  * @brief NOTICE
@@ -302,4 +303,13 @@ void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t 
 int vmm_checkvalid(uint32_t vaddr)
 {
     
+}
+char *copy_str_tokernel(char *user)
+{
+    if(!user)
+        return NULL;
+    _IO_ATOMIC_IN
+    char *re=strdup(user);
+    _IO_ATOMIC_OUT
+    return re;
 }

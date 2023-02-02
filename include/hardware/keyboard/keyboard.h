@@ -6,8 +6,8 @@ enum
     KEY_CAPLOCK,
     KEY_SHIFT,
     KEY_CTRL,
-    KEY_PGUP,
-    KEY_PGDOWN,
+    KEY_UP,
+    KEY_DOWN,
     KEY_LEFT,
     KEY_RIGHT
 };

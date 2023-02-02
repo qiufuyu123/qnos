@@ -370,17 +370,18 @@ qconfig_value_t* qconfig_get_value(struct ini* ini,char *path)
 			if(!target)
 			{
 				//kfree(cfg);
-				return 0;
+				return NULL;
 			}
 			memcpy(target,str+1,buff-str-1);
 			//printf("t:%s;",target);
 			type==QCONFIG_STR;
-		}else return 0;
+		}else
+			return NULL;
 	}else if (*buff>='0'&&*buff<='9')
 	{
 		if(!str2int(buff,&target))
 		{
-			return 0;
+			return NULL;
 		}
 		type=QCONFIG_NUMBER;
 	}else

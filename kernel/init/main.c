@@ -57,7 +57,7 @@ static uint32_t get_max_pm_addr(multiboot_info_t *mboot_ptr){          //qemu默
 //char pipe_inited=0;
 void test_t1(void *args)
 {
-    
+    sti();
     while (1)
     {
         uint8_t c= keyboard_get_key();
@@ -82,7 +82,7 @@ void test_t1(void *args)
 extern char tty_attr_lock;
 void test_t2(void *args)
 {
-    
+    sti();
     char c;
     int e=0;
     char buf[100]={0};

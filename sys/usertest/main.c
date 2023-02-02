@@ -98,6 +98,17 @@ int main(int argc,char *argv[])
             }
             textcolor(WHITE);
         }
+        else if(!strcmp(buf,"test7"))
+        {
+            // uint32_t old= sbrk(4096);
+            // printf("old prg brk:0x%x\n",old);
+            // brk(old);
+            // printf("free 4096 bytes!");
+            char *test=malloc(4096);
+            memcpy(test,"123123",7);
+            printf("FROM MALLOC:%x %s\n",test,test);
+            free(test);
+        }
         else if(!strcmp(buf,"test5"))
         {
             //printf("argv[0]:%s\n",argv[0]);
@@ -108,13 +119,16 @@ int main(int argc,char *argv[])
                 {
                     c=getch();
                     //printf("0x%x",c);
-                    if(c==KEY_PGUP)
+                    if(c==KEY_UP)
                     {
                         printf("PGUP");
-                    }else if(c==KEY_PGDOWN)
+                    }else if(c==KEY_DOWN)
                     {
                         printf("PGDOWN");
-                    }
+                    }else if(c==KEY_LEFT)
+                        printf("LEFT");
+                    else if(c==KEY_RIGHT)
+                        printf("RIGHT");
                 }
             }
             
@@ -185,7 +199,7 @@ int main(int argc,char *argv[])
             {
                 printf("FORK A THREAD FOR EXECUTE!\n");
                 exec(buf+4);
-                while(1);//This line will never be executed!
+                //while(1);//This line will never be executed!
             }
             if(is_wait)wait();
         }

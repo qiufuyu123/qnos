@@ -45,6 +45,8 @@ enum QNSyscall
     SYSCALL_PIPE,
     SYSCALL_DUP,
     SYSCALL_MOP,
+    SYSCALL_BRK,
+    SYSCALL_SBRK,
     SYSCALL_NR
 };
 #ifndef __USER__LIB

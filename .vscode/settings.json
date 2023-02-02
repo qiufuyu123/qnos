@@ -186,7 +186,8 @@
         "kobj_ktty.h": "c",
         "pipe.h": "c",
         "qnos.h": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "tui.h": "c"
     },
     
 }

@@ -43,3 +43,12 @@ int dup(int fd)
 {
     return dup2(fd,-1);
 }
+
+int brk(void *addr)
+{
+    return __base_syscall(SYSCALL_BRK,addr,0,0,0);
+}
+void* sbrk(int increasement)
+{
+    return __base_syscall(SYSCALL_SBRK,increasement,0,0,0);
+}

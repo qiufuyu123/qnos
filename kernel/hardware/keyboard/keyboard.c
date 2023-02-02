@@ -234,19 +234,10 @@ void intr_keyboard_handler(registers_t reg) {
 	 }
       }
       // 有可能此扫描码是2字节，高字节是0xe0，我们要抹去它
-      uint8_t mark=(scancode & 0xff00)>>8;
+      //uint8_t mark=(scancode & 0xff00)>>8;
       uint8_t index = (scancode &= 0x00ff);  // 将扫描码的高字节置0,主要是针对高字节是e0的扫描码.
       char cur_char;
-      if(!mark)
-         cur_char = keymap[index][shift];  // 在数组中找到对应的字符
-      else if(mark==0xe0)
-      {
-         if(index==0x48)
-         {
-            cur_char=KEY_PGUP;
-            printf("PG_UP");
-         }
-      }
+      cur_char = keymap[index][shift];  // 在数组中找到对应的字符
       /* 只处理ascii码不为0的键 */
       /*如果cur_char为0，根据目前keymap的定义，
       表示它们是操作控制键<ctrl>、<shift>、<alt>
@@ -259,10 +250,10 @@ void intr_keyboard_handler(registers_t reg) {
 	         //put_char(cur_char,BLACK,WHITE);
 			 //printf("[%c]",cur_char);
             current_key=cur_char;
-            if(mark)
-            {
-               circlequeue_push(&key_board_queue,"\0");
-            }
+            // if(mark)
+            // {
+            //    circlequeue_push(&key_board_queue,"\0");
+            // }
             circlequeue_push(&key_board_queue,&cur_char);
             thread_wakeup(blocked_thread);
          }
@@ -292,9 +283,9 @@ void intr_keyboard_handler(registers_t reg) {
          {
 
             if(index==0x49 || index==0x48)
-               index=KEY_PGUP;
+               index=KEY_UP;
             else if(index==0x51 || index==0x50)
-               index=KEY_PGDOWN;
+               index=KEY_DOWN;
             else if(index==0x4d)
                index=KEY_RIGHT;
             else if(index==0x4b)

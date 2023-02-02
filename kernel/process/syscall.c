@@ -8,6 +8,7 @@
 #include"mem/memorylayout.h"
 #include"mem/page.h"
 #include"process/ipc/pipe.h"
+#include"io.h"
 int syscall_handles[SYSCALL_NR]={0};
 
 int syscall_nop(int v1,int v2,int v3,int v4)
@@ -48,6 +49,7 @@ int syscall_interrupt(registers_t*reg)
         return -1;
     }
     int (*s_func)(int, int,int,int)=syscall_handles[syscall_id];
+    sti();
     reg->eax=s_func(reg->ebx,reg->ecx,reg->edx,reg->edi); 
 }
 int syscall_exit(int v1)
@@ -121,6 +123,7 @@ void sys_ps(int v1,int v2,int v3,int v4)
 int sys_exec(int v1,int v2,int v3,int v4)
 {
     char *test[4]={"arg1","arg2","arg3",0};
+    
     return user_exec(v1,test);
 }
 int sys_sleep(int v1,int v2,int v3,int v4)
@@ -139,6 +142,14 @@ int sys_wait(int v1,int v2,int v3,int v4)
 int sys_pipe(int v1,int v2,int v3,int v4)
 {
     return user_pipe(v1);   
+}
+uint32_t sys_brk(int v1,int v2,int v3,int v4)
+{
+    return user_brk(v1);
+}
+int sys_sbrk(int v1,int v2,int v3,int v4)
+{
+    return user_sbrk(v1);
 }
 void init_syscall()
 {
@@ -162,5 +173,7 @@ void init_syscall()
     syscall_handles[SYSCALL_WAIT]=sys_wait;
     syscall_handles[SYSCALL_PIPE]=sys_pipe;
     syscall_handles[SYSCALL_DUP]=syscall_dup;
+    syscall_handles[SYSCALL_BRK]=sys_brk;
+    syscall_handles[SYSCALL_SBRK]=sys_sbrk;
     register_interrupt_handler(0x80,syscall_interrupt);
 }

@@ -19,4 +19,5 @@ typedef uint32_t size_t;
 #define true TRUE
 #define NULL 0
 #define PACKED __attribute__((packed))
+#define SAFE_MACRO(x) do{x}while(0);
 #endif

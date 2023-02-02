@@ -8,7 +8,7 @@ typedef unsigned long long uint64_t;
 typedef char int8_t;
 typedef short int16_t;
 typedef int int32_t;
-
+typedef uint32_t size_t;
 typedef int32_t intptr_t;
 typedef uint32_t uintptr_t;
 #endif

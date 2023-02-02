@@ -6,6 +6,7 @@ enum
 {
     TTY_SETXY=1,
     TTY_ATTRLOCK,
+    //TTY_STREAMMODE,
     TTY_SETFC,
     TTY_SETBC
 };

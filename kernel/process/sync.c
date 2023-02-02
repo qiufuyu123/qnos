@@ -8,26 +8,24 @@ void lock_init(lock_t*lock)
 }
 void lock_acquire(lock_t*lock)
 {
-    if(!get_running_progress())return;
-    cli();
-    if(lock->holder_task==get_running_progress())
+    TCB_t* now=get_running_progress();
+    if(!now)return;
+    _IO_ATOMIC_IN
+    if(lock->holder_task==now)
     {
-        //printf("repeat acq;");
         lock->repeat_ref_count++;
-        sti();
+        _IO_ATOMIC_OUT
         return;
     }
     if(!lock->holder_task)
     {
-        //printf("hold an empty lock;");
-        lock->holder_task=get_running_progress();
-        sti();
+        lock->holder_task=now;
+        _IO_ATOMIC_OUT;
         return;
     }
     else{
-        list_append(&lock->wait_list,&get_running_progress()->lock_tag);
-        //printf("append to wait;");
-        while(lock->holder_task!=get_running_progress())
+        list_append(&lock->wait_list,&now->lock_tag);
+        while(lock->holder_task!=now)
         // ^^^^^^^^^^  This loop is used to prevent some SB who wants to wake up a blocked thread 
         //and unfortunately, this thread is blocked by the lock
         //
@@ -40,6 +38,7 @@ void lock_acquire(lock_t*lock)
         //After being woken up,
         //Code will return here vvvvvvv
         //schedule();
+        //printf("lock over");
         
         }
         //OK, lock is free now
@@ -50,39 +49,42 @@ void lock_acquire(lock_t*lock)
         //We dont need these codes 
         //Because we set the holder after sth is released.
         //printf("block end!;");
-        sti();
+        _IO_ATOMIC_OUT;
         return;
     }
 }
 void lock_release(lock_t *lock)
 {
-    if(!get_running_progress())return;
+    TCB_t* now=get_running_progress();
+    if(!now)return;
     //printf("in releasing...;");
-    if(lock->holder_task==get_running_progress())
+    _IO_ATOMIC_IN
+    if(lock->holder_task==now)
     {
-        //printf("release...;");
+        //
         if(lock->repeat_ref_count!=0)
         {
+            
             lock->repeat_ref_count--;
+            _IO_ATOMIC_OUT
             return;
         }
-        cli();
+        
         if(list_empty(&lock->wait_list))
         {
-            //printf("empty waiting;");
             lock->holder_task=0;
-            sti();
+            _IO_ATOMIC_OUT;
             return;
         }
         //printf("not empty waiting...");
         TCB_t*t=elem2entry(TCB_t,lock_tag,list_pop(&lock->wait_list));
-        //printf("get waittask:%d;",t->tid);
         lock->holder_task=t;
         thread_wakeup(t);
         //switch_to(&(cur_task->context),&(t->context));
-        sti();
+        _IO_ATOMIC_OUT;
         return;
     }
     //Not allow
+    _IO_ATOMIC_OUT
     printf("Bad release.;");
 }

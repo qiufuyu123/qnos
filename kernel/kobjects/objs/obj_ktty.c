@@ -3,9 +3,11 @@
 #include"console.h"
 #include"kobjects/kobj_ktty.h"
 #include"string.h"
+#include"mem/vmm.h"
 #include"hardware/vga.h"
 kobject_t*ktty_instance;
 char tty_attr_lock=0;
+
 int ktty_setattr(uint32_t attr,uint8_t *val)
 {
     if(attr==TTY_ATTRLOCK)
@@ -31,7 +33,7 @@ int ktty_getattr(uint32_t attr)
 }
 kobject_operations_t ktty_obj_operate={
     .attrset=ktty_setattr,
-    .attrget=ktty_getattr
+    .attrget=ktty_getattr,
 };
 void init_ktty_obj()
 {

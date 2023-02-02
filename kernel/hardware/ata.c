@@ -6,8 +6,10 @@
 #include"console.h"
 #include"string.h"
 #include"hardware/devices.h"
+#include"process/sync.h"
 volatile unsigned static char ide_irq_invoked = 0;
 unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static lock_t ata_lock;
 struct IdeIdentifyInfo {
 	//	0	General configuration bit-significant information
 	unsigned short General_Config;
@@ -892,14 +894,25 @@ int ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int l
       return ide_print_error(drive, err);
    }
 }  
+
 int ide_dev_read(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
 {
-   return ide_read_sectors(self->dev_id,num,addr,buffer);
+   //_IO_ATOMIC_IN
+   lock_acquire(&ata_lock);
+   int ret= ide_read_sectors(self->dev_id,num,addr,buffer);
+   //_IO_ATOMIC_OUT
+   lock_release(&ata_lock);
+   return ret;
 }
 int ide_dev_write(kdevice_t*self, uint32_t addr,uint32_t num,char *buffer,int flag)
 {
    if(self->type==KDEV_ATAPI)return -4;
-   return ide_ata_access(ATA_WRITE,self->dev_id,addr,num,buffer);
+   //_IO_ATOMIC_IN
+   lock_acquire(&ata_lock);
+   int ret= ide_ata_access(ATA_WRITE,self->dev_id,addr,num,buffer);
+   //_IO_ATOMIC_OUT
+   lock_release(&ata_lock);
+   return ret;
    //if(self->type==KDEV_ATAPI)return ide_atapi_read(self->dev_id,addr,num,buffer);
 }
 char *zeros=0;
@@ -921,6 +934,7 @@ kdevice_ops_t ata_dev_ops={
 };
 void ide_initialize(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3,
 unsigned int BAR4) {
+   lock_init(&ata_lock);
    zeros=kmalloc(512);
    if(zeros)
    {

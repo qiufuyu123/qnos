@@ -63,7 +63,8 @@ struct TCB_t{
 	bool is_kern_thread;         //识别是否为内核线程     （如果为内核线程的话就不进行换页等处理步骤）
 	//bitmap user_vmm_pool;    //定义虚拟内存池结构
 	uint32_t pdt_vaddr;    //定义进程虚拟页表在内核态中的虚拟地址（使用内核页表）    由于分配在内核内存中 所以pdt是只能在内核中进行读写操作的
-
+	uint32_t data_end;
+	uint32_t brk;
 	context_t context;
 
 	uint32_t tcb_magic_number;    //这个32位的magic number用来检查内核栈是否溢出
@@ -113,4 +114,6 @@ int user_dup(int oldfd,int newfd);
 vfs_file_t* thread_get_fd(int id);
 void active_task(TCB_t *task);
 void user_exit();     //线程结束函数 关闭中断->移出执行链表->回收内存空间->开启中断
+int user_brk(uint32_t vaddr);
+uint32_t user_sbrk(int increase);
 #endif

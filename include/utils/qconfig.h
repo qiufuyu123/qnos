@@ -19,7 +19,7 @@
 #define QCONFIG_POINTER 2
 /**
  * @brief NOTICE
- * WE SUPPORT FARRRRRRRRR MOR THAN THE COMMON INI FILE!
+ * WE SUPPORT FARRRRRRRRR MORE THAN THE COMMON INI FILE!
  */
 typedef struct qconfig_value
 {
@@ -78,7 +78,6 @@ qconfig_value_t* qconfig_get_value(struct ini* ini,char *key);
 
 /* Free memory associated with a read_ini structure. */
 void cleanup_readini(struct read_ini* read_ini);
-
 
 
 #endif

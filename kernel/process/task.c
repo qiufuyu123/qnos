@@ -15,6 +15,11 @@
 #include"process/ipc/pipe.h"
 #include"kelf.h"
 #include"io.h"
+static inline void invlpg(void* m)
+{
+    /* Clobber memory to avoid optimizer re-ordering access before invlpg, which may cause nasty bugs. */
+    asm volatile ( "invlpg (%0)" : : "b"(m) : "memory" );
+}
 #define TIME_CONT  10 //默认时间片计数
 #define MAX_PID 65535
 #define FORK_COPY_MARK 2
@@ -226,13 +231,13 @@ int user_fork()
 {
 	//printf("f1");
 	if(get_running_progress()->is_kern_thread!=0)return -1;
-	cli();
+	_IO_ATOMIC_IN
 	TCB_t*old_tcb=get_running_progress();
 	TCB_t*new_tcb=kmalloc_page(2);
 	//printf("f2");
 	if(!new_tcb)
 	{
-		sti();
+		_IO_ATOMIC_OUT
 		return -1;
 	}
 	memcpy(new_tcb,old_tcb,4096*2);
@@ -240,6 +245,7 @@ int user_fork()
 	if(!new_tcb->fd_list)
 	{
 		kfree_page(new_tcb,2);
+		_IO_ATOMIC_OUT
 		return -1;
 	}
 	memcpy(new_tcb->fd_list,old_tcb->fd_list,4*FD_MAX);
@@ -248,7 +254,7 @@ int user_fork()
 	if(!new_tcb->name)
 	{
 		kfree_page(new_tcb,1);
-		sti();
+		_IO_ATOMIC_OUT
 		return -1;
 	}
 	list_append(&old_tcb->child_thread_list,&new_tcb->child_tag);
@@ -274,7 +280,7 @@ int user_fork()
 	//int e=0;
 	page_setup_pdt(old_tcb->pdt_vaddr);
 	_fork_cpy_fd(new_tcb);
-	sti();
+	_IO_ATOMIC_OUT;
 	return new_tcb->tid;
 }
 /**
@@ -357,36 +363,36 @@ int user_test2()
 	memset(as,1,100);
 	return &as;
 }
-int _user_task_func(void *args)
-{
-	cli();//IMPORTANT!!!!!
-	//printf("before switch! 0x%x",(uint32_t)args);
-	if(!args)
-	{
-		switch_to_user_mode();
-		int r=__base_syscall(SYSCALL_FORK,0,0,0,0);
-		if(r==0)
-		{
-			user_test2();
-		}else{
-			user_test2();
-		}
-		while(1);
-	}
-	void(*func)()=args;
-	func();
-	//switch_to_user_mode();
-	while(1);
-	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
-	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
-	// // __base_syscall(SYSCALL_EXIT,0,0,0,0);
+// int _user_task_func(void *args)
+// {
+// 	cli();//IMPORTANT!!!!!
+// 	//printf("before switch! 0x%x",(uint32_t)args);
+// 	if(!args)
+// 	{
+// 		switch_to_user_mode();
+// 		int r=__base_syscall(SYSCALL_FORK,0,0,0,0);
+// 		if(r==0)
+// 		{
+// 			user_test2();
+// 		}else{
+// 			user_test2();
+// 		}
+// 		while(1);
+// 	}
+// 	void(*func)()=args;
+// 	func();
+// 	//switch_to_user_mode();
+// 	while(1);
+// 	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 1",0,0,0);
+// 	//  __base_syscall(SYSCALL_PRINTF,"this is syscall 2",0,0,0);
+// 	// // __base_syscall(SYSCALL_EXIT,0,0,0,0);
 	
-	//printf("user thread idle!0x%x\n",page_kv2p_u(0x3ffda000));
-	//while(1);
+// 	//printf("user thread idle!0x%x\n",page_kv2p_u(0x3ffda000));
+// 	//while(1);
 	
-	while(1);
-	//thread_function *func=args; 114;
-}
+// 	while(1);
+// 	//thread_function *func=args; 114;
+// }
 void remove_tcb(TCB_t *tcb)
 {
 	kfree(tcb->fd_list);
@@ -478,38 +484,28 @@ int user_exec(char*path,uint32_t *argv)
 	 * Since we will remap the memory area
 	 * We have to dup a copy of old path 
 	*/
-	char *dup_path=strdup(path);
+	char *dup_path=copy_str_tokernel(path);
 	TCB_t*now=get_running_progress();
-	#ifdef __DEBUG_FILE_SYSTEM
+	//#ifdef __DEBUG_FILE_SYSTEM
 	int fd= sys_open(dup_path,O_RDONLY);
 	if(fd<0)
 		return fd;
+	printf("EXE:%d;",fd);
 	char *file_buf=kmalloc_page(3);
 	sys_read(fd,file_buf,4096*3);
+	printf("EXE:%d;",fd);
 	int l=sys_tell(fd);
+	printf("EXE:%d;",fd);
 	uint32_t func=0;
-	cli();
-	uint32_t r=elf_load_user(fd,now->pdt_vaddr);
-	if(r==0)
-	{
-	QNBinary_t bhead;
-	func=qbinary_load(file_buf,file_buf,4096*2-sizeof(QNBinary_t),&bhead);
-	for (int i = 0; i < 5; i++)
-	{
-		if(!bhead.v_loads[i][0])continue;
-		int add=bhead.v_loads[i][1];
-		uint32_t base=bhead.v_loads[i][0];
-		for (int j = 0; j < add; j++)
-		{
-			if(page_chk_user(now->pdt_vaddr,base+j*4096))page_u_map_unset(now->pdt_vaddr,base+j*4096);
-			page_u_map_set(now->pdt_vaddr, base+j*4096);
-		}
-		
-	}
+	printf("EXE:%d;",fd);
 	
-	#endif
-	//2nd remap it
-	vmm_remapcls_pages(now->pdt_vaddr,file_buf,3,0x80000000);
+	uint32_t end=0;
+	uint32_t r=elf_load_user(fd,now->pdt_vaddr,&end);
+	if(!r)
+	{
+		printf("[ERROR]: QNOS Cannot solve this format executable file!\n");
+		
+		return -1;
 	}else
 	{
 		func=r;
@@ -533,7 +529,9 @@ int user_exec(char*path,uint32_t *argv)
 	//DO NOT FREE
 	//kfree(now->name);
 	now->name=strdup(look_for_filename(dup_path));
-	sti();
+	now->brk=end;
+	now->data_end=end;
+	
 	return 1;
 }
 
@@ -560,8 +558,8 @@ TCB_t *create_user_thread(char *path)
 		kfree_page(TCB_page,1);
 		return 0;
 	}
-	cli();
-	create_thread(strdup(look_for_filename(path)),tid,_user_task_func,0,TCB_page,1,1,0,0);
+	_IO_ATOMIC_IN
+	create_thread(strdup(look_for_filename(path)),tid,0,0,TCB_page,1,1,0,0);
 
 
 	//TCB_t *new_tcb=create_kern_thread("iserinit",_user_task_func,0);
@@ -572,6 +570,7 @@ TCB_t *create_user_thread(char *path)
 	if(!new_tcb->kern_user2kern_stack_top)
 	{
 		clean_up_dead(new_tcb);
+		_IO_ATOMIC_OUT
 		return NULL;
 	}
 	#ifdef __DEBUG_FILE_SYSTEM
@@ -625,7 +624,7 @@ TCB_t *create_user_thread(char *path)
 	*(--new_tcb->kern_stack_top)=func;
 	new_tcb->context.esp=new_tcb->kern_stack_top;
 	page_setup_kernel_pdt();
-sti();
+	_IO_ATOMIC_OUT
 	schedule();
 	return new_tcb;
 }
@@ -654,9 +653,9 @@ TCB_t* create_kern_thread(char* name,thread_function *func,void *args){
 		kfree_page(TCB_page,1);
 		return 0;
 	}
-	cli();
+	_IO_ATOMIC_IN
 	create_thread(name,tid,func,args,TCB_page,page_counte,is_kern_thread,default_pdt_vaddr,&main_TCB);
-	sti();
+	_IO_ATOMIC_OUT
 	printf("[CREATE a kernel thread:stack0x%x %s]",((TCB_t*)TCB_page)->kern_stack_top,((TCB_t*)TCB_page)->name);
 	//sti();
 	return TCB_page;
@@ -836,37 +835,37 @@ void thread_block(){
     //cli and sti is used to sync to access the threads list and it`s node information
     TCB_t* now = get_running_progress();
     //bool condition=cli_condition();
-	cli();
+	_IO_ATOMIC_IN
     now->task_status = TASK_BLOCKED;
     schedule();
     //reload the interrupt flag before block
-    sti();
+    _IO_ATOMIC_OUT
 }
 void thread_die(TCB_t*target_thread)
 {
-	cli();
+	_IO_ATOMIC_IN
 	target_thread->task_status=TASK_DIED;
-	sti();
+	_IO_ATOMIC_OUT
 }
 
 void thread_wakeup(TCB_t * target_thread){
-    int eflg=load_eflags();
-	cli();
+    _IO_ATOMIC_IN
 	if(target_thread->task_status==TASK_BLOCKED)
     	target_thread->task_status = TASK_READY;
-    store_eflags(eflg);
+    _IO_ATOMIC_OUT
 }
 
 void remove_thread(TCB_t* tmp){
-	cli();
+	_IO_ATOMIC_IN
 	if(tmp->tid==0)
-		printf("ERRO:main thread can`t use function exit\n");
+		PANIC("ERRO:main thread can`t use function exit\n");
 	else{
 		TCB_t *temp = tmp;
 		for(;temp->next!=tmp;temp=temp->next)
 			;
 		temp->next = tmp->next;
 	}
+	_IO_ATOMIC_OUT
 }
 
 void __freeing_mem_thread(TCB_t*now)
@@ -882,24 +881,71 @@ void __freeing_mem_thread(TCB_t*now)
 void user_wait()
 {
 	TCB_t* now = get_running_progress();
-	cli();
+	_IO_ATOMIC_IN
     now->task_status = TASK_WAITING;
     schedule();
-    sti();
+    _IO_ATOMIC_OUT
+}
+uint32_t user_sbrk(int increasement)
+{
+	TCB_t*now=get_running_progress();
+	uint32_t after=now->brk+increasement;
+	if(after<now->data_end)
+		printf("[WARNING]: This may override original program data!\n");
+	printf("SBRK:0x%x - 0x%x inc:%d;",now->brk,after,increasement);
+	if(after==now->brk)
+		return now->brk;
+	else if(after>now->brk)
+	{
+		uint32_t old=now->brk&0xfffff000;
+		uint32_t new=after&0xfffff000;
+		for (uint32_t i = old; i <= new; i+=4096)
+		{
+			if(!page_chk_user(now->pdt_vaddr,i))
+			{
+				page_u_map_set(now->pdt_vaddr,i);
+				printf("BRKALLOC:0x%x;",i);
+			}
+		}
+		
+	}else
+	{
+		uint32_t old=now->brk&0xfffff000;
+		uint32_t new=after&0xfffff000;
+		for (uint32_t i = new+4096; i <= old; i+=4096)
+		{
+			page_u_map_unset(now->pdt_vaddr,i);
+			printf("free:0x%x;",i);
+		}
+	}
+	invlpg(after&0xfffff000);
+	uint32_t re=now->brk;
+	now->brk=after;
+	return re;
+}
+int user_brk(uint32_t vaddr)
+{
+	TCB_t*now=get_running_progress();
+	if(vaddr<now->data_end)
+		return -1;
+	int delta=vaddr-now->brk;
+	user_sbrk(delta);
+	return 1;
 }
 void user_exit(){
 	//cli and sti is used to sync to access the threads list and it`s node information
     TCB_t* now = get_running_progress();
     //bool condition=cli_condition();
-	cli();
+	_IO_ATOMIC_IN
     now->task_status = TASK_DIED;
 	if(now->parent_thread)
 	{
-		if(now->parent_thread->task_status==TASK_WAITING)thread_wakeup(now->parent_thread);
+		if(now->parent_thread->task_status==TASK_WAITING)
+			now->parent_thread->task_status=TASK_READY;
 	}
     schedule();
     //reload the interrupt flag before block
-    sti();
+    _IO_ATOMIC_OUT
 	//注意 暂时没有回收此线程页
 }
 

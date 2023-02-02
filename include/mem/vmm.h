@@ -61,4 +61,6 @@ int vmm_checkvalid(uint32_t vaddr);
 void vmm_doublemap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr);
 void vmm_remap_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr);
 void vmm_remapcls_pages(page_directory_t*newpdt, uint32_t vaddr_in_kernel,uint32_t page_cnt,uint32_t new_vaddr);
+
+char *copy_str_tokernel(char *user);
 #endif

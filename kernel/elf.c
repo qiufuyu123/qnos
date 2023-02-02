@@ -414,11 +414,12 @@ void section_header_32_parse(int fd,elf_header* ehdr) {
     }
     kfree_page(strtable,pgnum);
 }
-void program_header_32_parse(int fd,elf_header* ehdr,page_directory_t*pdt) {
+void program_header_32_parse(int fd,elf_header* ehdr,page_directory_t*pdt,uint32_t *end) {
     elf_program_header phdr[10];
     sys_lseek(fd, ehdr->phoff, SEEK_SET);
     int count = ehdr->phnum>10?10:ehdr->phnum;    //程序头表的数量
     sys_read(fd,phdr, sizeof(elf_program_header)*count);
+    uint32_t max=0;
     for(int i = 0; i < count; ++i) {
         if(phdr[i].type==1){
             //printf("PT LOAD");
@@ -428,13 +429,16 @@ void program_header_32_parse(int fd,elf_header* ehdr,page_directory_t*pdt) {
                 {
                     if(page_chk_user(pdt,phdr[i].vaddr+j*4096))page_u_map_unset(pdt,phdr[i].vaddr+j*4096);
                     page_u_map_set(pdt,phdr[i].vaddr+j*4096);
+                    if(phdr[i].vaddr+j*4096>max)
+                        max=phdr[i].vaddr+j*4096;
                     //printf("map:0x%x\n",phdr[i].vaddr+j*4096);
                 }
         }
     }
+    *end=max;
 }
 
-int elf_load_user(int fd,page_directory_t *pdt)
+int elf_load_user(int fd,page_directory_t *pdt,uint32_t *end)
 {
     elf_header head;
     if(ELF_header_32_parse(fd,&head)<0)
@@ -443,7 +447,9 @@ int elf_load_user(int fd,page_directory_t *pdt)
         return 0;
     }
     //printf("elf checked ok!");
-    program_header_32_parse(fd,&head,pdt);
+    uint32_t max;
+    program_header_32_parse(fd,&head,pdt,&max);
+    *end=max+4096;
     //printf("Program header loaded!");
     section_header_32_parse(fd,&head);
     //printf("Section header Loaded!\n");

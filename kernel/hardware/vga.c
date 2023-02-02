@@ -139,8 +139,7 @@ void vga_gen_puchar(char ch)
             return;
         }else if(ch=='\n')
         {
-            int flg=load_eflags();
-            cli();
+            _IO_ATOMIC_IN
             cur_y+=CHAR_H;
             if(cur_y>=vga_height)
             {
@@ -148,7 +147,7 @@ void vga_gen_puchar(char ch)
                 vga_scroll_up();
             }
             cur_x=0;
-            store_eflags(flg);
+            _IO_ATOMIC_OUT
             return;
         }else vga_putchar(ch,cur_x,cur_y,0xffffffff);
         cur_x+=CHAR_W;

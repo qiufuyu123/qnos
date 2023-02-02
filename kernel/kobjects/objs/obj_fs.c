@@ -10,8 +10,8 @@
 #include "string.h"
 //#define __check_open_flag(flag,need_flag) (flag)&(need_flag)
 lock_t fs_lock;
-#define IN_LOCK lock_acquire(&fs_lock);
-#define OUT_LOCK lock_release(&fs_lock);
+#define IN_LOCK //lock_acquire(&fs_lock);
+#define OUT_LOCK //lock_release(&fs_lock);
 slab_unit_t *inode_slab;
 slab_unit_t *dir_elem_slab;
 slab_unit_t *dentry_slab;
@@ -519,7 +519,6 @@ int vfs_add_fsops(vfs_sb_ops_t *ops)
 vfs_file_t *vfs_fopen(char *path, uint8_t flag)
 {
     // int t;
-    IN_LOCK
     //printf("vfs:%s",path);
     //printf("s0s0s0s0");
     vfs_dentry_t*lst=0;
@@ -529,14 +528,12 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     {
         if (!(flag&O_CREAT) || !lst||!fname)
         {
-            OUT_LOCK
             return 0;
         }
         printf("VFS:Creating file:%s %x",fname,lst->ops->add_delem);
         d_elem=lst->ops->add_delem(lst,fname);
         if(!d_elem)
         {
-            OUT_LOCK
             return 0;
         }
         
@@ -551,7 +548,6 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     vfs_file_t *f = vfs_alloc_file();
     if (!f)
     {
-        OUT_LOCK
         return 0;
     }
     f->content = d_elem;
@@ -563,7 +559,6 @@ vfs_file_t *vfs_fopen(char *path, uint8_t flag)
     f->ref_cnt=0;
     vfs_inode_t*inode=inode2ptr(d_elem->file);
     inode->refer_count++;
-    OUT_LOCK
     return f;
 }
 int sys_read(int fd, char *buffer, uint32_t size)
@@ -685,7 +680,6 @@ int sys_open(char *path, uint8_t flag)
     if (!f)
     {
         OUT_LOCK
-        
         return VFS_NULL_OBJECT_ERR;
     }
     //printf("fd open ok!;");

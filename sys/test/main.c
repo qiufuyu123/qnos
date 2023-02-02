@@ -8,7 +8,7 @@ char *a_str="This is a string stored in .data section";
 
 int kread(int idx,char *buffer,uint32_t size,uint32_t flag)
 {
-
+    
 }
 int kwrite(int idx,char *buffer,uint32_t size,uint32_t flag)
 {

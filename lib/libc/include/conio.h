@@ -8,5 +8,7 @@ void clrscr();
 char getch();
 void gotoxy(int x,int y);
 void textcolor(char c);
+void textbackground(char c);
 void conlock(char c);
+void cprintf(char *str,...);
 #endif
